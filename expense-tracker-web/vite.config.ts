@@ -7,24 +7,29 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'app-icon.svg', 'apple-touch-icon.svg'],
       manifest: {
-        name: 'Expense Tracker',
-        short_name: 'Expense',
-        description: 'Web App Quản lý Chi tiêu Cá nhân Tự động',
-        theme_color: '#3b82f6',
-        background_color: '#f9fafb',
+        name: 'T-Expense',
+        short_name: 'T-Expense',
+        description: 'Personal expense tracker for Gmail transaction notifications',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
         display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
-            src: 'favicon.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
+            src: 'app-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           },
           {
-            src: 'favicon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml'
+            src: 'apple-touch-icon.svg',
+            sizes: '180x180',
+            type: 'image/svg+xml',
+            purpose: 'any'
           }
         ]
       }

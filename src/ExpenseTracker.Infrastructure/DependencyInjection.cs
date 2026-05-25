@@ -28,8 +28,6 @@ public static class DependencyInjection
 
         services.AddSingleton<IGmailService, GmailService>();
         
-        services.AddSingleton<IEmailParserStrategy, GrabEmailParser>();
-        services.AddSingleton<IEmailParserStrategy, MBBankEmailParser>();
         services.AddSingleton<IEmailParserStrategy, TechcombankEmailParser>();
         services.AddSingleton<IEmailParserStrategy, MomoEmailParser>();
         services.AddSingleton<IEmailParserStrategy, TimoEmailParser>();

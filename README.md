@@ -14,7 +14,7 @@ Dự án được thiết kế chuyên nghiệp, áp dụng các Pattern nâng c
    - Tối ưu hóa truy vấn bằng `.AsNoTracking()` mang lại hiệu suất đọc báo cáo siêu tốc.
 2. **Tự động hóa Gmail (Automation) 📧**:
 
-   - Sử dụng **Strategy Pattern** linh hoạt để tự động bóc tách (parse) hóa đơn chi tiêu từ Email thông qua Regex (Hỗ trợ sẵn Grab và MB Bank).
+   - Sử dụng **Strategy Pattern** linh hoạt để tự động bóc tách (parse) thông báo giao dịch từ Gmail cho Techcombank, MoMo, Timo và Cake.
    - Tích hợp **Polly Resilience Pipeline** tự động retry bằng thuật toán Exponential Backoff khi gặp sự cố mạng (IMAP/Database timeouts).
    - **Idempotency**: Chống trùng lặp giao dịch tự động qua `MessageId`.
 3. **Bảo mật Dữ liệu (AES-256 Data-at-rest) 🔐**:

@@ -1,0 +1,16 @@
+@ExpenseTracker.Api_HostAddress = http://localhost:5080
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/transactions
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/transactions/dashboard?month=5&year=2026
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/sync/logs
+Accept: application/json
+
+###

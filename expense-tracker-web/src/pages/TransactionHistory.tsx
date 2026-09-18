@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, ArrowDownRight, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt } from "lucide-react";
+import { Search, ArrowDownRight, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -47,13 +47,14 @@ export default function TransactionHistory() {
     try {
       await deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
+      window.dispatchEvent(new CustomEvent("transaction-updated"));
       toast.success("Đã xóa giao dịch thành công!");
     } catch {
       toast.error("Không thể xóa giao dịch. Vui lòng thử lại!");
     }
   };
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN").format(val) + "đ";
+  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
   const filteredData = useMemo(() => {
     return transactions.filter((t) => {
@@ -70,7 +71,7 @@ export default function TransactionHistory() {
     });
   }, [transactions, searchTerm, filterMode]);
 
-  const visibleData = filteredData.slice(0, page * 12);
+  const visibleData = filteredData.slice(0, page * 15);
   const totalIncome = filteredData
     .filter((t) => t.type === TransactionType.Income)
     .reduce((sum, item) => sum + item.amount, 0);
@@ -108,47 +109,53 @@ export default function TransactionHistory() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 px-4 pt-4">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <h1 className="text-xl font-black text-white tracking-tight">Lịch Sử Giao Dịch</h1>
+          <p className="text-xs text-slate-400">
             {isLoading ? "Đang tải dữ liệu..." : `${filteredData.length} giao dịch`}
           </p>
-          <h2 className="text-2xl font-black text-slate-950 dark:text-white">Lịch sử giao dịch</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCsv}
-            disabled={filteredData.length === 0}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-50"
-          >
-            <ArrowDownRight size={14} /> Xuất CSV
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={filteredData.length === 0}
+          className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 transition disabled:opacity-40"
+        >
+          <Download size={14} /> Xuất CSV
+        </button>
       </div>
 
       {/* Summary Cards */}
-      <section className="grid gap-3 sm:grid-cols-2">
-        <SummaryCard
-          label="Tổng thu lọc"
-          value={formatCurrency(totalIncome)}
-          icon={ArrowDownRight}
-          tone="emerald"
-        />
-        <SummaryCard
-          label="Tổng chi lọc"
-          value={formatCurrency(totalExpense)}
-          icon={ArrowUpRight}
-          tone="rose"
-        />
+      <section className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng thu lọc</span>
+            <span className="text-lg font-black text-emerald-400 tracking-tight mt-0.5 block">{formatCurrency(totalIncome)}</span>
+          </div>
+          <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <ArrowDownRight size={18} />
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng chi lọc</span>
+            <span className="text-lg font-black text-rose-400 tracking-tight mt-0.5 block">{formatCurrency(totalExpense)}</span>
+          </div>
+          <span className="p-2 rounded-xl bg-rose-500/10 text-rose-400">
+            <ArrowUpRight size={18} />
+          </span>
+        </div>
       </section>
 
-      {/* Search & Filters */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm space-y-3">
+      {/* Search & Filter Chips */}
+      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-sm space-y-3">
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-            <Search size={18} className="text-slate-400" />
+            <Search size={16} className="text-slate-500" />
           </div>
           <input
             type="text"
@@ -158,7 +165,7 @@ export default function TransactionHistory() {
               setSearchTerm(e.target.value);
               setPage(1);
             }}
-            className="w-full min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 dark:text-white outline-none transition focus:border-blue-400 focus:bg-white dark:focus:bg-slate-900"
+            className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-9 pr-4 text-xs font-medium text-white outline-none transition focus:border-blue-500 placeholder-slate-600"
           />
         </div>
 
@@ -179,10 +186,10 @@ export default function TransactionHistory() {
                   "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition",
                   isSelected
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
                 )}
               >
-                {Icon && <Icon size={14} />}
+                {Icon && <Icon size={13} />}
                 {filter.label}
               </button>
             );
@@ -191,8 +198,8 @@ export default function TransactionHistory() {
       </section>
 
       {/* Transactions List */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+      <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm overflow-hidden">
+        <div className="divide-y divide-slate-800/80">
           {visibleData.map((t) => {
             const isIncome = t.type === TransactionType.Income;
             const hasReceipt = !!t.receiptImagePath;
@@ -202,66 +209,59 @@ export default function TransactionHistory() {
               <div
                 key={t.id}
                 onClick={() => setSelectedTransaction(t)}
-                className="flex items-center justify-between gap-3 p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition"
+                className="flex items-center justify-between gap-3 p-4 hover:bg-slate-800/40 cursor-pointer transition"
               >
                 {/* Left: Thumbnail or Category Icon */}
                 <div className="flex min-w-0 items-center gap-3">
                   {hasReceipt && receiptUrl ? (
-                    <div className="relative h-12 w-12 shrink-0 rounded-2xl overflow-hidden border-2 border-indigo-400/40 shadow-sm bg-slate-950">
+                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-indigo-400/40 bg-black">
                       <img
                         src={receiptUrl}
                         alt="Bill thumbnail"
                         className="h-full w-full object-cover"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-indigo-600/90 text-center text-[8px] font-black text-white leading-tight py-0.5">
+                      <div className="absolute bottom-0 inset-x-0 bg-indigo-600 text-center text-[7px] font-black text-white leading-tight">
                         SNAP
                       </div>
                     </div>
                   ) : (
                     <div
                       className={cn(
-                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                        isIncome
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
-                          : "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+                        isIncome ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
                       )}
                     >
-                      {isIncome ? <ArrowDownRight size={20} /> : <Receipt size={20} />}
+                      {isIncome ? <ArrowDownRight size={18} /> : <Receipt size={18} />}
                     </div>
                   )}
 
                   {/* Middle Details */}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                    <p className="truncate text-xs font-bold text-white">
                       {t.description || t.merchant || "Giao dịch"}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
                       <span className="flex items-center gap-1">
-                        <Calendar size={11} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
+                        <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
                       </span>
                       {t.categoryName && (
                         <span
-                          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
+                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-bold text-white"
                           style={{ backgroundColor: t.categoryColor || "#3b82f6" }}
                         >
-                          <Tag size={9} /> {t.categoryName}
-                        </span>
-                      )}
-                      {t.source === TransactionSource.SnapReceipt && !hasReceipt && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-500">
-                          <Camera size={10} /> Snap
+                          <Tag size={8} /> {t.categoryName}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Amount & Quick Delete */}
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Right: Amount & Delete Button */}
+                <div className="flex items-center gap-2.5 shrink-0">
                   <span
                     className={cn(
-                      "text-sm sm:text-base font-black tracking-tight",
-                      isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-white"
+                      "text-xs sm:text-sm font-black tracking-tight",
+                      isIncome ? "text-emerald-400" : "text-slate-200"
                     )}
                   >
                     {isIncome ? "+" : "-"}{formatCurrency(t.amount)}
@@ -274,10 +274,10 @@ export default function TransactionHistory() {
                         handleDelete(t.id);
                       }
                     }}
-                    className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition"
                     title="Xóa giao dịch"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -285,22 +285,22 @@ export default function TransactionHistory() {
           })}
 
           {!isLoading && visibleData.length === 0 && (
-            <div className="px-5 py-16 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
-                <Search size={24} />
+            <div className="px-5 py-14 text-center">
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-400">
+                <Search size={20} />
               </div>
-              <p className="font-extrabold text-slate-800 dark:text-white">Không tìm thấy giao dịch nào</p>
-              <p className="mt-1 text-xs text-slate-500">Thử tìm từ khóa khác hoặc chụp hóa đơn mới nhé.</p>
+              <p className="font-bold text-xs text-white">Không tìm thấy giao dịch nào</p>
+              <p className="mt-1 text-[11px] text-slate-500">Thử đổi từ khóa hoặc bộ lọc khác.</p>
             </div>
           )}
         </div>
 
         {visibleData.length < filteredData.length && (
-          <div className="border-t border-slate-100 dark:border-slate-800 p-4">
+          <div className="border-t border-slate-800 p-3">
             <button
               type="button"
               onClick={() => setPage((p) => p + 1)}
-              className="w-full min-h-[44px] rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              className="w-full py-2.5 rounded-xl bg-slate-800/80 text-xs font-bold text-slate-300 hover:bg-slate-800 transition"
             >
               Xem thêm giao dịch
             </button>
@@ -316,37 +316,5 @@ export default function TransactionHistory() {
         onDelete={handleDelete}
       />
     </motion.div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  tone: "emerald" | "rose";
-  icon: typeof ArrowDownRight;
-}) {
-  const isEmerald = tone === "emerald";
-  return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-        <div
-          className={cn(
-            "p-1.5 rounded-xl",
-            isEmerald
-              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600"
-              : "bg-rose-50 dark:bg-rose-950/50 text-rose-600"
-          )}
-        >
-          <Icon size={16} />
-        </div>
-      </div>
-      <p className="text-xl font-black text-slate-950 dark:text-white tracking-tight">{value}</p>
-    </div>
   );
 }

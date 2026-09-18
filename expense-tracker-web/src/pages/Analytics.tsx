@@ -1,188 +1,352 @@
 import { useState, useEffect, useMemo } from "react";
-import { getTransactions, type TransactionDto } from "../lib/api";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Lightbulb, 
+  PieChart, 
+  Calendar
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { getTransactions, TransactionType, type TransactionDto } from "../lib/api";
+
+type TimeRange = "this-month" | "last-month" | "all";
 
 export default function Analytics() {
-  const [activeTab, setActiveTab] = useState("Tháng này");
+  const [timeRange, setTimeRange] = useState<TimeRange>("this-month");
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     getTransactions()
       .then(setTransactions)
-      .catch(() => {
-        // Fallback or ignore for now
-      })
+      .catch(() => setTransactions([]))
       .finally(() => setIsLoading(false));
   }, []);
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN").format(val) + "đ";
+  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
-  // Compute breakdown
-  const categoryBreakdown = useMemo(() => {
-    const expenseTx = transactions.filter(t => t.type === 1);
-    const total = expenseTx.reduce((sum, t) => sum + t.amount, 0);
-    
-    const byCategory = expenseTx.reduce((acc, t) => {
-      const cat = t.description || t.merchant || "Khác";
-      acc[cat] = (acc[cat] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  // 1. Lọc theo khoảng thời gian thực tế
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
 
-    const sorted = Object.entries(byCategory)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, amount]) => ({ name, amount, percentage: total > 0 ? (amount / total) * 100 : 0 }));
-    
-    // Group small ones into "Khác" if too many
-    if (sorted.length > 4) {
-      const top3 = sorted.slice(0, 3);
-      const othersAmount = sorted.slice(3).reduce((sum, c) => sum + c.amount, 0);
-      top3.push({ name: "Khác", amount: othersAmount, percentage: total > 0 ? (othersAmount / total) * 100 : 0 });
-      return { total, breakdown: top3 };
+    if (timeRange === "this-month") {
+      return transactions.filter((t) => {
+        const d = new Date(t.transactionDate);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      });
     }
-    return { total, breakdown: sorted };
-  }, [transactions]);
 
-  const colors = ["stroke-primary", "stroke-secondary-container", "stroke-tertiary-fixed-dim", "stroke-surface-variant"];
-  const bgColors = ["bg-primary", "bg-secondary-container", "bg-tertiary-fixed-dim", "bg-surface-variant"];
+    if (timeRange === "last-month") {
+      const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+      const targetYear = lastMonthDate.getFullYear();
+      const targetMonth = lastMonthDate.getMonth();
+      return transactions.filter((t) => {
+        const d = new Date(t.transactionDate);
+        return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+      });
+    }
+
+    return transactions;
+  }, [transactions, timeRange]);
+
+  // 2. Tính toán tổng chi và phân bổ danh mục theo dữ liệu thực
+  const stats = useMemo(() => {
+    const expenseTx = filteredTransactions.filter((t) => t.type === TransactionType.Expense);
+    const incomeTx = filteredTransactions.filter((t) => t.type === TransactionType.Income);
+
+    const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
+    const totalIncome = incomeTx.reduce((sum, t) => sum + t.amount, 0);
+    const balance = totalIncome - totalExpense;
+
+    // Nhóm theo tên danh mục thực tế từ Database
+    const categoryMap: Record<string, { amount: number; color?: string }> = {};
+    expenseTx.forEach((t) => {
+      const name = t.categoryName || "Khác";
+      if (!categoryMap[name]) {
+        categoryMap[name] = { amount: 0, color: t.categoryColor || "#64748b" };
+      }
+      categoryMap[name].amount += t.amount;
+    });
+
+    const categoryBreakdown = Object.entries(categoryMap)
+      .map(([name, data]) => ({
+        name,
+        amount: data.amount,
+        color: data.color,
+        percentage: totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { totalExpense, totalIncome, balance, categoryBreakdown };
+  }, [filteredTransactions]);
+
+  // 3. Tính toán Insight thông minh thực tế (Không gán cứng)
+  const insights = useMemo(() => {
+    const now = new Date();
+    const todayDay = now.getDate();
+    const daysCount = timeRange === "this-month" ? Math.max(todayDay, 1) : 30;
+    const dailyAverage = stats.totalExpense > 0 ? stats.totalExpense / daysCount : 0;
+
+    const topCategory = stats.categoryBreakdown[0] || null;
+
+    // So sánh tuần này vs tuần trước thực tế
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOfWeek = (today.getDay() + 6) % 7; // Thứ 2 = 0
+    const startOfThisWeek = new Date(today);
+    startOfThisWeek.setDate(today.getDate() - dayOfWeek);
+
+    const startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+
+    const endOfLastWeek = new Date(startOfThisWeek);
+    endOfLastWeek.setMilliseconds(-1);
+
+    const thisWeekExpenses = transactions
+      .filter((t) => {
+        const d = new Date(t.transactionDate);
+        return t.type === TransactionType.Expense && d >= startOfThisWeek;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const lastWeekExpenses = transactions
+      .filter((t) => {
+        const d = new Date(t.transactionDate);
+        return t.type === TransactionType.Expense && d >= startOfLastWeek && d <= endOfLastWeek;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    let weekDiffPercent = 0;
+    if (lastWeekExpenses > 0) {
+      weekDiffPercent = Math.round(((thisWeekExpenses - lastWeekExpenses) / lastWeekExpenses) * 100);
+    }
+
+    return {
+      dailyAverage,
+      topCategory,
+      thisWeekExpenses,
+      lastWeekExpenses,
+      weekDiffPercent,
+    };
+  }, [stats, transactions, timeRange]);
 
   return (
-    <div className="px-[16px] space-y-[24px] pt-[16px]">
-      
-      {/* Tab Navigation */}
-      <div className="flex p-1 bg-surface-container-high rounded-xl gap-1">
-        {["Tháng này", "Tháng trước"].map(tab => (
-          <button 
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-center text-[14px] font-medium rounded-lg transition-all ${
-              activeTab === tab 
-                ? 'bg-surface-container-lowest text-primary shadow-sm' 
-                : 'text-on-surface-variant hover:bg-surface-container-low'
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4">
+      {/* Header & Bộ lọc thời gian */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-black text-white tracking-tight">Phân Tích Chi Tiêu</h1>
+          <p className="text-xs text-slate-400">Dữ liệu tính toán thời gian thực</p>
+        </div>
+
+        {/* Tab chọn thời gian */}
+        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button
+            type="button"
+            onClick={() => setTimeRange("this-month")}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+              timeRange === "this-month" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
             }`}
           >
-            {tab}
+            Tháng này
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={() => setTimeRange("last-month")}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+              timeRange === "last-month" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Tháng trước
+          </button>
+          <button
+            type="button"
+            onClick={() => setTimeRange("all")}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+              timeRange === "all" ? "bg-blue-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Tất cả
+          </button>
+        </div>
       </div>
 
-      {/* Smart Insight Card */}
-      <section className="bg-surface-container-lowest p-[16px] rounded-xl shadow-[0px_2px_8px_rgba(0,82,204,0.05)] flex gap-[16px] items-start border-l-4 border-error">
-        <div className="bg-error-container text-on-error-container p-2 rounded-lg">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>lightbulb</span>
+      {/* 1. Thẻ Insight Thông Minh (Được tính toán động 100% từ Database) */}
+      <section className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-sm space-y-3.5">
+        <div className="flex items-center gap-2 text-amber-400">
+          <Lightbulb size={18} />
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-white">Insight Thông Minh</h2>
         </div>
-        <div className="space-y-[4px]">
-          <h3 className="text-[14px] text-on-surface font-bold">Insight thông minh</h3>
-          <p className="text-on-surface-variant text-[16px]">
-            Chi tiêu cho <span className="font-bold text-error">Mua sắm</span> của bạn tháng này cao hơn <span className="font-bold text-error">24%</span> so với mức trung bình hàng tháng.
-          </p>
+
+        <div className="grid gap-2.5">
+          {/* Insight 1: Danh mục chi nhiều nhất */}
+          {insights.topCategory ? (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-start gap-3">
+              <span className="p-2 rounded-xl bg-blue-500/10 text-blue-400 shrink-0">
+                <PieChart size={18} />
+              </span>
+              <div className="text-xs text-slate-300 leading-relaxed">
+                Chi tiêu nhiều nhất cho{" "}
+                <span className="font-extrabold text-white" style={{ color: insights.topCategory.color }}>
+                  {insights.topCategory.name}
+                </span>{" "}
+                với{" "}
+                <span className="font-extrabold text-rose-400">
+                  {formatCurrency(insights.topCategory.amount)}
+                </span>{" "}
+                (chiếm <span className="font-bold text-white">{Math.round(insights.topCategory.percentage)}%</span> tổng chi).
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 text-center">
+              Chưa có dữ liệu chi tiêu trong khoảng thời gian này.
+            </div>
+          )}
+
+          {/* Insight 2: Trung bình mỗi ngày */}
+          {insights.dailyAverage > 0 && (
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-start gap-3">
+              <span className="p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
+                <Calendar size={18} />
+              </span>
+              <div className="text-xs text-slate-300 leading-relaxed">
+                Mức chi tiêu trung bình:{" "}
+                <span className="font-extrabold text-white">
+                  {formatCurrency(Math.round(insights.dailyAverage))} / ngày
+                </span>
+                .
+              </div>
+            </div>
+          )}
+
+          {/* Insight 3: So sánh Tuần này so với Tuần trước */}
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-start gap-3">
+            <span
+              className={`p-2 rounded-xl shrink-0 ${
+                insights.weekDiffPercent > 0
+                  ? "bg-rose-500/10 text-rose-400"
+                  : "bg-emerald-500/10 text-emerald-400"
+              }`}
+            >
+              {insights.weekDiffPercent > 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+            </span>
+            <div className="text-xs text-slate-300 leading-relaxed">
+              {insights.lastWeekExpenses === 0 ? (
+                <>Tuần này đã chi <span className="font-extrabold text-white">{formatCurrency(insights.thisWeekExpenses)}</span> (tuần trước không có chi tiêu).</>
+              ) : insights.weekDiffPercent > 0 ? (
+                <>
+                  Tuần này chi tiêu <span className="font-bold text-rose-400">tăng {insights.weekDiffPercent}%</span> so với tuần trước ({formatCurrency(insights.thisWeekExpenses)} vs {formatCurrency(insights.lastWeekExpenses)}).
+                </>
+              ) : (
+                <>
+                  Tuần này chi tiêu <span className="font-bold text-emerald-400">giảm {Math.abs(insights.weekDiffPercent)}%</span> so với tuần trước (bạn đang tiết kiệm tốt!).
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Donut Chart: Category Allocation */}
-      <section className="bg-surface-container-lowest p-[16px] rounded-xl shadow-[0px_2px_8px_rgba(0,82,204,0.05)] space-y-[16px]">
-        <div className="flex justify-between items-center">
-          <h2 className="text-[24px] font-semibold text-on-surface">Phân bổ danh mục</h2>
-          <button className="material-symbols-outlined text-outline">info</button>
-        </div>
-        
-        <div className="flex flex-col items-center justify-center py-[24px] relative">
-          {/* SVG Donut Chart */}
-          <svg className="w-48 h-48 donut-chart" viewBox="0 0 42 42">
-            {categoryBreakdown.breakdown.map((cat, i) => {
-              const previousPercentages = categoryBreakdown.breakdown.slice(0, i).reduce((sum, c) => sum + c.percentage, 0);
-              const dasharray = `${cat.percentage} ${100 - cat.percentage}`;
-              const dashoffset = i === 0 ? 0 : -previousPercentages;
-              
-              return (
-                <circle 
-                  key={cat.name}
-                  className={colors[i % colors.length]} 
-                  cx="21" cy="21" fill="transparent" r="15.915" 
-                  strokeDasharray={dasharray} 
-                  strokeDashoffset={dashoffset} 
-                  strokeWidth="5"
-                ></circle>
-              );
-            })}
-            {categoryBreakdown.breakdown.length === 0 && (
-              <circle className="stroke-surface-variant" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="100 0" strokeDashoffset="0" strokeWidth="5"></circle>
-            )}
-          </svg>
-          
-          {/* Center Text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[12px] font-semibold text-on-surface-variant">Tổng chi</span>
-            <span className="text-[20px] font-semibold text-on-surface">{categoryBreakdown.total > 0 ? formatCurrency(categoryBreakdown.total) : '0đ'}</span>
+      {/* 2. Biểu Đồ Phân Bổ Danh Mục (Dữ liệu thực từ Database) */}
+      <section className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-white">Phân Bổ Danh Mục</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Tổng chi: {formatCurrency(stats.totalExpense)}</p>
           </div>
         </div>
 
-        {/* Legend Grid */}
-        <div className="grid grid-cols-2 gap-[16px]">
-          {categoryBreakdown.breakdown.map((cat, i) => (
-            <div key={cat.name} className="flex items-center gap-[8px]">
-              <span className={`w-3 h-3 rounded-full ${bgColors[i % bgColors.length]}`}></span>
-              <div className="flex flex-col">
-                <span className="text-[12px] font-semibold text-on-surface-variant truncate w-24">{cat.name}</span>
-                <span className="text-[14px] text-on-surface font-bold">{Math.round(cat.percentage)}%</span>
+        {/* Thanh Progress và Danh sách chi tiết */}
+        <div className="space-y-3">
+          {stats.categoryBreakdown.map((cat) => (
+            <div key={cat.name} className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: cat.color || "#3b82f6" }}
+                  />
+                  <span className="text-slate-200">{cat.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">{formatCurrency(cat.amount)}</span>
+                  <span className="text-white w-10 text-right">{Math.round(cat.percentage)}%</span>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="h-2 rounded-full bg-slate-950 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(cat.percentage, 100)}%`,
+                    backgroundColor: cat.color || "#3b82f6",
+                  }}
+                />
               </div>
             </div>
           ))}
-          {categoryBreakdown.breakdown.length === 0 && (
-            <p className="col-span-2 text-center text-sm text-outline">
-              {isLoading ? "Đang tải dữ liệu..." : "Chưa có dữ liệu giao dịch."}
-            </p>
+
+          {!isLoading && stats.categoryBreakdown.length === 0 && (
+            <p className="text-center text-xs text-slate-500 py-6">Chưa có giao dịch nào trong khoảng thời gian này.</p>
           )}
         </div>
       </section>
 
-      {/* Comparison Bar Chart */}
-      <section className="bg-surface-container-lowest p-[16px] rounded-xl shadow-[0px_2px_8px_rgba(0,82,204,0.05)] space-y-[16px]">
-        <div className="flex justify-between items-start">
-          <div className="space-y-[4px]">
-            <h2 className="text-[24px] font-semibold text-on-surface">Tuần này</h2>
-            <div className="flex items-center gap-[8px]">
-              <span className="text-[28px] font-semibold text-on-surface">{formatCurrency(categoryBreakdown.total)}</span>
-              <span className="flex items-center text-error text-[12px] font-semibold bg-error-container px-2 py-0.5 rounded-full">
-                <span className="material-symbols-outlined text-[14px] leading-none">trending_up</span>
-                100%
-              </span>
-            </div>
+      {/* 3. So Sánh Tuần Này vs Tuần Trước (Cột tỉ lệ thật) */}
+      <section className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-white">So Sánh Chi Tiêu Tuần</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Đo lường nhịp độ chi tiêu thực tế</p>
           </div>
-          <span className="text-[12px] font-semibold text-outline px-2 py-1 bg-surface-container-high rounded-md">So với tuần trước</span>
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-extrabold ${
+              insights.weekDiffPercent > 0
+                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            }`}
+          >
+            {insights.weekDiffPercent > 0 ? `+${insights.weekDiffPercent}%` : `${insights.weekDiffPercent}%`}
+          </span>
         </div>
 
-        <div className="flex items-end justify-between h-48 pt-[24px] relative">
-          {/* Bar 1 */}
-          <div className="flex flex-col items-center gap-[8px] w-12 z-10">
-            <div className="w-full bg-surface-container-high rounded-t-lg h-10 relative overflow-hidden">
-              <div className="absolute bottom-0 w-full bg-outline-variant h-full animate-grow-y"></div>
-            </div>
-            <span className="text-[12px] font-semibold text-on-surface-variant">Tuần trước</span>
-          </div>
-          
-          {/* Bar 2 (Active) */}
-          <div className="flex flex-col items-center gap-[8px] w-12 z-10">
-            <div className="w-full bg-surface-container-high rounded-t-lg h-40 relative overflow-hidden">
-              <div className="absolute bottom-0 w-full bg-primary h-full animate-grow-y"></div>
-            </div>
-            <span className="text-[12px] font-bold text-primary">Tuần này</span>
-          </div>
+        {/* Biểu đồ cột so sánh theo số tiền thật */}
+        {(() => {
+          const maxAmount = Math.max(insights.thisWeekExpenses, insights.lastWeekExpenses, 1);
+          const heightLast = insights.lastWeekExpenses > 0 ? Math.max((insights.lastWeekExpenses / maxAmount) * 100, 8) : 4;
+          const heightThis = insights.thisWeekExpenses > 0 ? Math.max((insights.thisWeekExpenses / maxAmount) * 100, 8) : 4;
 
-          {/* Grid Lines background */}
-          <div className="absolute inset-x-[16px] h-40 flex flex-col justify-between pointer-events-none opacity-20 border-b border-outline-variant">
-            <div className="border-t border-outline"></div>
-            <div className="border-t border-outline"></div>
-            <div className="border-t border-outline"></div>
-            <div className="border-t border-outline"></div>
-          </div>
-        </div>
+          return (
+            <div className="flex items-end justify-around h-44 pt-6 bg-slate-950 rounded-2xl p-4 border border-slate-800/80">
+              {/* Cột Tuần Trước */}
+              <div className="flex flex-col items-center gap-2 w-24 h-full justify-end">
+                <span className="text-[11px] font-bold text-slate-400">
+                  {formatCurrency(insights.lastWeekExpenses)}
+                </span>
+                <div
+                  style={{ height: `${heightLast}%` }}
+                  className="w-14 rounded-t-xl bg-slate-800 border-t border-slate-700 transition-all duration-500"
+                />
+                <span className="text-xs font-bold text-slate-400">Tuần trước</span>
+              </div>
+
+              {/* Cột Tuần Này */}
+              <div className="flex flex-col items-center gap-2 w-24 h-full justify-end">
+                <span className="text-[11px] font-bold text-blue-400">
+                  {formatCurrency(insights.thisWeekExpenses)}
+                </span>
+                <div
+                  style={{ height: `${heightThis}%` }}
+                  className="w-14 rounded-t-xl bg-gradient-to-t from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/30 transition-all duration-500"
+                />
+                <span className="text-xs font-bold text-blue-400">Tuần này</span>
+              </div>
+            </div>
+          );
+        })()}
       </section>
-
-      {/* Detailed List Action */}
-      <button className="w-full bg-primary py-[24px] rounded-xl text-on-primary text-[24px] font-semibold shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-[8px]">
-        Xem báo cáo chi tiết
-        <span className="material-symbols-outlined">arrow_forward</span>
-      </button>
-    </div>
+    </motion.div>
   );
 }

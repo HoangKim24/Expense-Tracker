@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Camera, RefreshCw, Image as ImageIcon, Check, Sparkles, Tag } from "lucide-react";
+import { 
+  X, 
+  RefreshCw, 
+  Image as ImageIcon, 
+  Send, 
+  Sparkles, 
+  Zap, 
+  RotateCcw,
+  Tag
+} from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { 
@@ -26,7 +35,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
   const [isFlashing, setIsFlashing] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
 
-  // Form states
+  // Form states for Locket / Instagram overlay
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -36,8 +45,9 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
-  // Stop camera stream
+  // Dừng stream camera
   const stopStream = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -45,7 +55,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     }
   }, [stream]);
 
-  // Start camera stream
+  // Khởi động stream camera
   const startCamera = useCallback(async (mode: "environment" | "user") => {
     stopStream();
     try {
@@ -71,16 +81,18 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     }
   }, [stopStream]);
 
-  // Setup / teardown camera when modal opens/closes
+  // Quản lý đóng/mở modal
   useEffect(() => {
     if (isOpen) {
-      getCategories().then((cats) => {
-        setCategories(cats);
-        if (cats.length > 0 && !selectedCategoryId) {
-          const defaultCat = cats.find(c => c.name.includes("Ăn") || c.name.includes("Cà phê")) || cats[0];
-          setSelectedCategoryId(defaultCat.id);
-        }
-      }).catch(() => setCategories([]));
+      getCategories()
+        .then((cats) => {
+          setCategories(cats);
+          if (cats.length > 0 && !selectedCategoryId) {
+            const defaultCat = cats.find((c) => c.name.includes("Ăn") || c.name.includes("Cà phê")) || cats[0];
+            setSelectedCategoryId(defaultCat.id);
+          }
+        })
+        .catch(() => setCategories([]));
 
       if (!capturedImage) {
         startCamera(facingMode);
@@ -95,22 +107,33 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     }
   }, [isOpen, facingMode, capturedImage, startCamera, stopStream]);
 
-  // Attach stream to video tag whenever stream changes
+  // Gắn stream vào thẻ video
   useEffect(() => {
     if (videoRef.current && stream && !capturedImage) {
       videoRef.current.srcObject = stream;
     }
   }, [stream, capturedImage]);
 
-  // Trigger shutter capture
+  // Tự động focus vào ô nhập tiền sau khi chụp
+  useEffect(() => {
+    if (capturedImage) {
+      const timer = setTimeout(() => {
+        amountInputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [capturedImage]);
+
+  // Nút chụp ảnh Shutter kiểu Locket
   const handleCapture = () => {
     if (!videoRef.current) return;
 
+    // Rung phản hồi haptic
     if (navigator.vibrate) {
-      navigator.vibrate([20, 30, 20]);
+      navigator.vibrate([25, 40, 25]);
     }
 
-    // Trigger flash animation
+    // Hiệu ứng chớp sáng trắng màn hình (White Flash)
     setIsFlashing(true);
     setTimeout(() => setIsFlashing(false), 200);
 
@@ -126,22 +149,21 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         ctx.scale(-1, 1);
       }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
       setCapturedImage(dataUrl);
 
-      // Convert dataUrl to File
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], `snap_${Date.now()}.jpg`, { type: "image/jpeg" });
           setCapturedFile(file);
         }
-      }, "image/jpeg", 0.9);
+      }, "image/jpeg", 0.92);
 
       stopStream();
     }
   };
 
-  // Handle image upload from library
+  // Chọn ảnh từ thư viện
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -155,30 +177,33 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     reader.readAsDataURL(file);
   };
 
-  // Switch between front and back camera
+  // Lật camera trước / sau
   const handleToggleCamera = () => {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
-  // Reset to take another photo
+  // Chụp lại (Retake)
   const handleRetake = () => {
     setCapturedImage(null);
     setCapturedFile(null);
+    setAmount("");
+    setDescription("");
     startCamera(facingMode);
   };
 
-  // Quick amount chip add
+  // Nút cộng tiền nhanh
   const handleAddQuickAmount = (extra: number) => {
     const current = Number(amount.replace(/\D/g, "")) || 0;
     const nextVal = current + extra;
     setAmount(new Intl.NumberFormat("vi-VN").format(nextVal));
   };
 
-  // Submit transaction with snap receipt
+  // Gửi vào sổ chi tiêu (Send to Ledger)
   const handleSubmit = async () => {
     const numericAmount = Number(amount.replace(/\D/g, ""));
     if (!numericAmount || numericAmount <= 0) {
-      toast.error("Vui lòng nhập số tiền hợp lệ");
+      toast.error("Vui lòng chạm vào nhãn tiền để nhập số tiền chi tiêu!");
+      amountInputRef.current?.focus();
       return;
     }
 
@@ -192,8 +217,9 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       }
 
       const selectedCat = categories.find((c) => c.id === selectedCategoryId);
-      const defaultDesc = selectedCat ? `${selectedCat.name} (Snap)` : "Hóa đơn Snap & Log";
+      const defaultDesc = selectedCat ? `${selectedCat.name} (Locket Snap)` : "Khoảnh khắc chi tiêu Snap";
 
+      // Tự động cộng vào chi phí (Type: Expense, Source: SnapReceipt)
       await createTransaction({
         amount: numericAmount,
         transactionDate: new Date().toISOString(),
@@ -204,21 +230,23 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         receiptImagePath: receiptPath,
       });
 
+      // Hiệu ứng pháo hoa rực rỡ
       confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#3b82f6", "#10b981", "#f59e0b", "#ec4899"],
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.65 },
+        colors: ["#facc15", "#38bdf8", "#34d399", "#f43f5e"],
       });
 
-      toast.success("Đã ghi nhận giao dịch & hóa đơn!", {
-        description: `${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ - ${description || defaultDesc}`,
+      toast.success("Đã gửi vào Sổ Chi Tiêu thành công!", {
+        description: `-${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ • ${description || defaultDesc}`,
       });
 
+      window.dispatchEvent(new CustomEvent("transaction-updated"));
       onSuccess?.();
       onClose();
     } catch {
-      toast.error("Lỗi khi lưu giao dịch. Vui lòng thử lại!");
+      toast.error("Không thể lưu giao dịch. Vui lòng thử lại!");
     } finally {
       setIsSubmitting(false);
     }
@@ -228,68 +256,81 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
-        {/* Shutter Flash Animation */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 sm:bg-black/90 backdrop-blur-2xl p-0 sm:p-4 overflow-hidden">
+        {/* Shutter White Flash Animation */}
         <AnimatePresence>
           {isFlashing && (
             <motion.div
               initial={{ opacity: 1 }}
               animate={{ opacity: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-60 bg-white pointer-events-none"
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-[60] bg-white pointer-events-none"
             />
           )}
         </AnimatePresence>
 
-        {/* Modal Container */}
+        {/* Hidden Canvas & File Input */}
+        <canvas ref={canvasRef} className="hidden" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Locket Frame Container */}
         <motion.div
-          initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.92, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="relative w-full max-w-md bg-slate-900 border border-slate-800 text-white rounded-[36px] shadow-2xl overflow-hidden flex flex-col my-auto"
+          initial={{ scale: 0.94, opacity: 0, y: 15 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.94, opacity: 0, y: 15 }}
+          transition={{ type: "spring", stiffness: 380, damping: 28 }}
+          className="relative w-full max-w-[420px] h-full sm:h-auto sm:max-h-[860px] bg-black sm:bg-slate-950 sm:border sm:border-slate-800/90 sm:rounded-[44px] shadow-2xl overflow-hidden flex flex-col justify-between p-3 sm:p-4"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 pt-5 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-3 w-3 rounded-full bg-rose-500 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400">Snap & Log</span>
-            </div>
+          {/* Top Bar Navigation */}
+          <div className="flex items-center justify-between px-2 pt-1 pb-2 z-20">
+            {/* Close / Retake Button */}
             <button
-              onClick={onClose}
-              className="p-2 rounded-full bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition"
+              type="button"
+              onClick={capturedImage ? handleRetake : onClose}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/90 backdrop-blur-xl border border-white/10 flex items-center justify-center transition shadow-lg"
+              title={capturedImage ? "Chụp lại" : "Đóng"}
             >
-              <X size={20} />
+              {capturedImage ? <RotateCcw size={18} /> : <X size={20} />}
             </button>
+
+            {/* Locket Logo Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#facc15]" />
+              <span className="text-xs font-black tracking-wider uppercase">Locket Snap</span>
+            </div>
+
+            {/* Flash / Status indicator */}
+            <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center text-amber-300">
+              <Zap size={18} />
+            </div>
           </div>
 
-          {/* Hidden Elements */}
-          <canvas ref={canvasRef} className="hidden" />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
-          {!capturedImage ? (
-            /* CAMERA VIEWFINDER MODE */
-            <div className="p-4 flex flex-col items-center">
-              {/* Locket Viewfinder Frame */}
-              <div className="relative w-full aspect-[4/5] bg-slate-950 rounded-[32px] overflow-hidden border-2 border-slate-700/60 shadow-inner flex items-center justify-center">
+          {/* MAIN VIEWFINDER / PHOTO CANVAS */}
+          <div className="relative flex-1 w-full aspect-[4/5] sm:aspect-[4/5] bg-neutral-950 rounded-[38px] overflow-hidden border-2 border-white/15 shadow-2xl flex items-center justify-center select-none my-1">
+            {!capturedImage ? (
+              /* LIVE CAMERA FEED */
+              <>
                 {hasCameraPermission === false ? (
                   <div className="text-center px-6 space-y-4">
-                    <Camera size={48} className="mx-auto text-slate-500" />
-                    <p className="text-sm font-semibold text-slate-300">
-                      Không thể truy cập camera hoặc chưa được cấp quyền.
-                    </p>
+                    <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/10 flex items-center justify-center mx-auto text-slate-300">
+                      <ImageIcon size={32} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
+                      <p className="text-xs text-slate-400">Bạn có thể chọn ảnh hóa đơn sẵn có trong máy.</p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-600 font-bold text-xs text-white shadow-lg hover:bg-blue-500 transition"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 font-bold text-xs text-white shadow-lg active:scale-95 transition"
                     >
                       <ImageIcon size={16} /> Chọn ảnh từ thư viện
                     </button>
@@ -304,123 +345,127 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                   />
                 )}
 
-                {/* Viewfinder Overlay Guide */}
-                <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-[30px]" />
-                <div className="absolute top-4 left-4 pointer-events-none px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[11px] font-medium text-white/80">
-                  Căn chỉnh hóa đơn / bill
+                {/* Subtle Viewfinder Frame Guide */}
+                <div className="absolute inset-4 pointer-events-none rounded-[30px] border border-white/15" />
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-[11px] font-medium text-white/80 border border-white/10">
+                  Căn chỉnh hóa đơn / chi tiêu
+                </div>
+              </>
+            ) : (
+              /* CAPTURED PHOTO WITH INSTAGRAM & LOCKET OVERLAYS */
+              <div className="relative w-full h-full">
+                {/* Photo */}
+                <img
+                  src={capturedImage}
+                  alt="Locket snap"
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Gradient shade overlays for contrast */}
+                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/50 via-transparent to-black/70" />
+
+                {/* 1. INSTAGRAM-STYLE FLOATING AMOUNT STICKER */}
+                <div className="absolute top-4 inset-x-3 flex flex-col items-center z-10">
+                  <motion.div
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="w-full max-w-[280px] px-4 py-2.5 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex items-center justify-between gap-2"
+                  >
+                    <span className="text-xl">💸</span>
+                    <div className="flex-1 flex items-center justify-center">
+                      <input
+                        ref={amountInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={amount}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
+                        }}
+                        className="bg-transparent text-2xl font-black text-white text-center focus:outline-none w-full placeholder-white/40 tracking-tight"
+                      />
+                    </div>
+                    <span className="text-xs font-black text-amber-400">VNĐ</span>
+                  </motion.div>
+
+                  {/* Floating quick increment chips */}
+                  <div className="flex gap-1.5 mt-2 overflow-x-auto max-w-full px-1 py-0.5 no-scrollbar">
+                    {[10000, 20000, 50000, 100000, 200000].map((add) => (
+                      <button
+                        key={add}
+                        type="button"
+                        onClick={() => handleAddQuickAmount(add)}
+                        className="shrink-0 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-bold text-white hover:bg-white/20 active:scale-95 transition shadow-sm"
+                      >
+                        +{add >= 1000 ? `${add / 1000}k` : add}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. LOCKET-STYLE BOTTOM CAPTION CAPSULE */}
+                <div className="absolute bottom-4 inset-x-3 z-10">
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/75 backdrop-blur-xl border border-white/30 shadow-2xl">
+                    <Sparkles size={15} className="text-amber-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Gửi một ghi chú... (VD: Cà phê Highlands)"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-white/50 focus:outline-none font-semibold"
+                    />
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Camera Controls Bar */}
-              <div className="w-full mt-6 mb-2 flex items-center justify-around px-4">
-                {/* Pick from Gallery Button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-3.5 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95 transition shadow-lg"
-                  title="Chọn ảnh từ máy"
-                >
-                  <ImageIcon size={22} />
-                </button>
+          {/* BOTTOM CONTROLS BAR */}
+          {!capturedImage ? (
+            /* CAMERA CONTROL BUTTONS */
+            <div className="w-full pt-3 pb-2 flex items-center justify-around px-4">
+              {/* Pick from Library (Rounded Square) */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-13 h-13 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
+                title="Chọn ảnh từ thư viện"
+              >
+                <ImageIcon size={22} />
+              </button>
 
-                {/* Big Locket Shutter Button */}
-                <button
-                  type="button"
-                  onClick={handleCapture}
-                  disabled={hasCameraPermission === false}
-                  className="relative flex items-center justify-center w-20 h-20 rounded-full border-4 border-white/80 p-1.5 active:scale-90 transition-transform duration-150 disabled:opacity-40"
-                >
-                  <span className="w-full h-full rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.6)]" />
-                </button>
+              {/* The Iconic Double-Ring Locket Shutter Button */}
+              <button
+                type="button"
+                onClick={handleCapture}
+                disabled={hasCameraPermission === false}
+                className="relative flex items-center justify-center w-21 h-21 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
+                title="Chụp ảnh"
+              >
+                <span className="w-full h-full rounded-full bg-white shadow-inner flex items-center justify-center" />
+              </button>
 
-                {/* Flip Camera Button */}
-                <button
-                  type="button"
-                  onClick={handleToggleCamera}
-                  disabled={hasCameraPermission === false}
-                  className="p-3.5 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 active:scale-95 transition shadow-lg disabled:opacity-40"
-                  title="Đổi camera trước/sau"
-                >
-                  <RefreshCw size={22} />
-                </button>
-              </div>
+              {/* Camera Flip Button */}
+              <button
+                type="button"
+                onClick={handleToggleCamera}
+                disabled={hasCameraPermission === false}
+                className="w-13 h-13 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
+                title="Đổi camera trước/sau"
+              >
+                <RefreshCw size={22} />
+              </button>
             </div>
           ) : (
-            /* POLAROID PREVIEW & EXPENSE ENTRY MODE */
-            <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-              {/* Polaroid Card */}
-              <div className="relative mx-auto w-full max-w-[320px] bg-slate-950 p-3 pt-3 pb-5 rounded-[28px] border border-slate-700/80 shadow-2xl transform rotate-[-0.5deg] transition hover:rotate-0">
-                {/* Photo frame */}
-                <div className="relative w-full aspect-square rounded-[20px] overflow-hidden bg-black shadow-inner">
-                  <img
-                    src={capturedImage}
-                    alt="Receipt snap"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-white tracking-wide">
-                    {new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                  </div>
+            /* POST-CAPTURE ACTION BAR (CATEGORY PILLS & LOCKET SEND BUTTON) */
+            <div className="w-full pt-2 pb-1 space-y-2.5">
+              {/* Category Pills (Horizontal Scroll) */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-1 px-1 text-[11px] font-bold text-slate-400">
+                  <Tag size={11} /> Chọn danh mục:
                 </div>
-
-                {/* Retake action */}
-                <div className="mt-3 flex items-center justify-between px-1">
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
-                    <Sparkles size={13} className="text-amber-400" /> Polaroid Snap
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRetake}
-                    className="text-xs font-bold text-blue-400 hover:text-blue-300 transition"
-                  >
-                    Chụp lại
-                  </button>
-                </div>
-              </div>
-
-              {/* Amount Input */}
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                  Số tiền đã chi
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={amount}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
-                    }}
-                    autoFocus
-                    className="w-full rounded-2xl bg-slate-800/90 border border-slate-700 px-4 py-3.5 text-2xl font-black text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 pr-12 text-right"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
-                    VNĐ
-                  </span>
-                </div>
-
-                {/* Quick amount increment chips */}
-                <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
-                  {[10000, 20000, 50000, 100000, 200000].map((add) => (
-                    <button
-                      key={add}
-                      type="button"
-                      onClick={() => handleAddQuickAmount(add)}
-                      className="shrink-0 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700 transition active:scale-95"
-                    >
-                      +{add >= 1000 ? `${add / 1000}k` : add}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Category Selector */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <Tag size={12} /> Danh mục
-                </label>
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
                   {categories.map((cat) => {
                     const isSelected = selectedCategoryId === cat.id;
                     return (
@@ -429,18 +474,16 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                         type="button"
                         onClick={() => setSelectedCategoryId(cat.id)}
                         style={{
-                          borderColor: isSelected ? cat.color : undefined,
-                          backgroundColor: isSelected ? `${cat.color}22` : undefined,
+                          borderColor: isSelected ? cat.color : "rgba(255,255,255,0.15)",
+                          backgroundColor: isSelected ? `${cat.color}33` : "rgba(255,255,255,0.08)",
                         }}
-                        className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition border ${
-                          isSelected
-                            ? "text-white ring-1 ring-white/30"
-                            : "bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition border active:scale-95 ${
+                          isSelected ? "text-white ring-1 ring-white/40" : "text-slate-300 hover:bg-white/15"
                         }`}
                       >
                         <span
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: cat.color || "#3b82f6" }}
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: cat.color || "#38bdf8" }}
                         />
                         {cat.name}
                       </button>
@@ -449,34 +492,20 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
               </div>
 
-              {/* Note / Description */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                  Ghi chú (tùy chọn)
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: Cà phê sáng, Grab đi làm..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-xl bg-slate-800/90 border border-slate-700 px-4 py-2.5 text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Submit Button */}
+              {/* Iconic Locket Yellow Send Button */}
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !amount}
-                className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] font-black text-sm text-white shadow-xl shadow-blue-600/30 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full py-4 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] font-black text-slate-950 text-sm shadow-[0_0_30px_rgba(251,191,36,0.45)] transition flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:pointer-events-none"
               >
                 {isSubmitting ? (
                   <>
-                    <RefreshCw size={18} className="animate-spin" /> Đang lưu hóa đơn...
+                    <RefreshCw size={19} className="animate-spin" /> Đang gửi vào Sổ Chi Tiêu...
                   </>
                 ) : (
                   <>
-                    <Check size={18} /> Lưu hóa đơn Snap & Log
+                    <Send size={18} className="fill-slate-950" /> Gửi Vào Sổ Chi Tiêu
                   </>
                 )}
               </button>

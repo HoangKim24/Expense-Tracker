@@ -8,7 +8,8 @@ import {
   ChevronRight, 
   Trash2,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Camera
 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -27,6 +28,7 @@ import {
   type CategoryDto,
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
+import LocketCameraModal from "../components/LocketCameraModal";
 
 type DayTotal = { label: string; amount: number; isToday: boolean };
 
@@ -43,6 +45,7 @@ export default function Dashboard() {
   const [note, setNote] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   // Load Data
   const loadData = useCallback(() => {
@@ -192,30 +195,44 @@ export default function Dashboard() {
             <PlusCircle size={18} className="text-blue-500" />
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">Ghi Sổ Nhanh</h2>
           </div>
-          {/* Toggle Chi / Thu */}
-          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+
+          <div className="flex items-center gap-2">
+            {/* Locket Snap Quick Camera Button */}
             <button
               type="button"
-              onClick={() => setEntryType("expense")}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                entryType === "expense"
-                  ? "bg-rose-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              onClick={() => setIsCameraModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-300 text-xs font-bold transition active:scale-95 shadow-sm"
+              title="Chụp ảnh hóa đơn phong cách Locket"
             >
-              Chi tiêu
+              <Camera size={14} className="text-amber-400 animate-pulse" />
+              <span>Locket Snap</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setEntryType("income")}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                entryType === "income"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Thu nhập
-            </button>
+
+            {/* Toggle Chi / Thu */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEntryType("expense")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                  entryType === "expense"
+                    ? "bg-rose-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Chi tiêu
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType("income")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                  entryType === "income"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Thu nhập
+              </button>
+            </div>
           </div>
         </div>
 
@@ -457,6 +474,13 @@ export default function Dashboard() {
         isOpen={!!selectedTransaction}
         onClose={() => setSelectedTransaction(null)}
         onDelete={handleDelete}
+      />
+
+      {/* Locket Camera Modal */}
+      <LocketCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onSuccess={loadData}
       />
     </motion.div>
   );

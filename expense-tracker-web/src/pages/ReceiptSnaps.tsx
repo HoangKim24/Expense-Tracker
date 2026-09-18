@@ -55,12 +55,15 @@ export default function ReceiptSnaps() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5 px-4 pt-4">
-      {/* 1. Header & Nút Chụp Hóa Đơn Lớn */}
-      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 p-5 shadow-xl space-y-4">
+      {/* 1. Header & Nút Chụp Hóa Đơn Locket Snap */}
+      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 border border-slate-800 p-5 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Kho Ảnh Hóa Đơn</span>
-            <h1 className="text-2xl font-black text-white tracking-tight mt-0.5">Snap & Log</h1>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Locket Widget Style</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight mt-0.5">Locket Snap Chi Tiêu</h1>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Đã chi qua Snap</span>
@@ -68,17 +71,18 @@ export default function ReceiptSnaps() {
           </div>
         </div>
 
-        {/* Nút chụp chính */}
+        {/* Nút chụp chính chuẩn Locket */}
         <button
           type="button"
           onClick={() => setIsCameraModalOpen(true)}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-rose-600 hover:opacity-95 active:scale-[0.98] font-black text-sm text-white shadow-xl shadow-indigo-600/30 transition flex items-center justify-center gap-2.5"
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-200 active:scale-[0.98] font-black text-sm text-slate-950 shadow-xl shadow-amber-400/20 transition flex items-center justify-center gap-2.5"
         >
-          <Camera size={20} className="animate-pulse" /> Chụp Hóa Đơn Mới (Ghi Thẳng Vào Chi Phí)
+          <Camera size={20} className="text-slate-950 animate-pulse" />
+          <span>Bật Camera Locket Snap (Chụp & Ghi Chi Phí Tức Thì)</span>
         </button>
 
         <p className="text-[11px] text-slate-400 text-center">
-          💡 Ảnh hóa đơn sau khi chụp sẽ được lưu trữ vĩnh viễn và số tiền sẽ tự động cộng vào tổng chi tiêu.
+          💡 Ảnh hóa đơn sau khi chụp sẽ được lưu trữ vĩnh viễn và số tiền sẽ tự động cộng thẳng vào tổng chi tiêu.
         </p>
       </div>
 

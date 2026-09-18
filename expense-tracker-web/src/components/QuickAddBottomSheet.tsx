@@ -1,37 +1,41 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowDownRight, ArrowUpRight, Check, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, X, Camera } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import { categories } from "../mockData";
-import { createTransaction, TransactionSource, TransactionType } from "../lib/api";
+import { createTransaction, getCategories, TransactionSource, TransactionType, type CategoryDto } from "../lib/api";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onOpenSnapCamera?: () => void;
 }
 
 type EntryType = "expense" | "income";
 
-export default function QuickAddBottomSheet({ isOpen, onClose }: Props) {
+export default function QuickAddBottomSheet({ isOpen, onClose, onOpenSnapCamera }: Props) {
   const [amount, setAmount] = useState("");
-  const [selectedCat, setSelectedCat] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [entryType, setEntryType] = useState<EntryType>("expense");
+  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [categoryId, setCategoryId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setAmount("");
-    setSelectedCat(null);
     setNote("");
     setEntryType("expense");
+    setTransactionDate(new Date().toISOString().slice(0, 10));
+    setCategoryId("");
     setIsSaving(false);
   };
 
   useEffect(() => {
     if (isOpen) {
+      getCategories().then(setCategories).catch(() => setCategories([]));
       setTimeout(() => {
         inputRef.current?.focus();
       }, 250);
@@ -62,11 +66,11 @@ export default function QuickAddBottomSheet({ isOpen, onClose }: Props) {
     try {
       await createTransaction({
         amount: numericAmount,
-        transactionDate: new Date().toISOString(),
+        transactionDate: new Date(`${transactionDate}T12:00:00`).toISOString(),
         description: note || (entryType === "income" ? "Khoản thu nhập nhanh" : "Giao dịch nhập nhanh"),
         type: entryType === "income" ? TransactionType.Income : TransactionType.Expense,
         source: TransactionSource.Manual,
-        categoryId: null,
+        categoryId: categoryId || null,
       });
 
       confetti({ particleCount: 80, spread: 64, origin: { y: 0.72 }, colors: ["#2563eb", "#10b981", "#f43f5e"] });
@@ -98,18 +102,32 @@ export default function QuickAddBottomSheet({ isOpen, onClose }: Props) {
             transition={{ type: "spring", damping: 28, stiffness: 220 }}
             className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92vh] max-w-2xl flex-col overflow-hidden rounded-t-lg bg-white pb-safe shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 p-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-5">
               <div>
                 <p className="text-xs font-bold uppercase text-slate-400">Tạo giao dịch</p>
-                <h2 className="text-xl font-extrabold text-slate-950">Nhập nhanh</h2>
+                <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">Nhập nhanh</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => { triggerHaptic(); onClose(); }}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-              >
-                <X size={24} />
-              </button>
+              <div className="flex items-center gap-2">
+                {onOpenSnapCamera && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic();
+                      onOpenSnapCamera();
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition shadow-sm"
+                  >
+                    <Camera size={15} /> Chụp bill
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic(); onClose(); }}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-5 overflow-y-auto p-5">
@@ -144,36 +162,29 @@ export default function QuickAddBottomSheet({ isOpen, onClose }: Props) {
                 </div>
               </label>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase text-slate-500">Danh mục gợi ý</span>
-                  <span className="text-xs font-semibold text-slate-400">Tùy chọn</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                  {categories.map(cat => (
-                    <motion.button
-                      key={cat.id}
-                      type="button"
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => { triggerHaptic(); setSelectedCat(cat.id); }}
-                      className={cn(
-                        "relative flex min-h-[76px] min-w-[44px] flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center transition",
-                        selectedCat === cat.id
-                          ? "border-blue-300 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      )}
-                    >
-                      {selectedCat === cat.id && (
-                        <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded bg-blue-600 text-white">
-                          <Check size={11} />
-                        </span>
-                      )}
-                      <cat.icon size={22} />
-                      <span className="text-[11px] font-bold leading-tight">{cat.name}</span>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Danh muc</span>
+                <select
+                  value={categoryId}
+                  onChange={(event) => setCategoryId(event.target.value)}
+                  className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                >
+                  <option value="">Khong chon danh muc</option>
+                  {categories
+                    .filter(category => category.type === (entryType === "income" ? TransactionType.Income : TransactionType.Expense))
+                    .map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Ngay giao dich</span>
+                <input
+                  type="date"
+                  value={transactionDate}
+                  onChange={(event) => setTransactionDate(event.target.value)}
+                  className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                />
+              </label>
 
               <label className="block">
                 <span className="mb-2 block text-xs font-bold uppercase text-slate-500">Ghi chú</span>

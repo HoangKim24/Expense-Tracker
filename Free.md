@@ -1,0 +1,13 @@
+
+### Free hosting/service cho dự án cá nhân
+
+Vì ưu tiên free hoàn toàn, đây là các lựa chọn miễn phí phù hợp với stack ASP.NET Core + SQL Server + React đang dùng:
+
+| Thành phần                                       | Lựa chọn free                                                                                                                                     | Ghi chú                                                                                                                   |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Backend API (.NET)                                 | **Railway**(free tier có giới hạn giờ chạy/tháng),**Render**(free nhưng sleep khi không dùng),**Fly.io**(free tier nhỏ) | Render/Fly hay "ngủ" sau X phút không request, lần đầu gọi lại sẽ chậm — chấp nhận được với app cá nhân |
+| Database                                           | **Supabase**(Postgres free 500MB) hoặc**Azure SQL free tier**(nếu muốn giữ SQL Server)                                              | Nếu đổi sang Postgres, cần đổi EF Core provider — cân nhắc công sức đổi                                       |
+| Frontend (React PWA)                               | **Vercel**hoặc**Netlify**(free tier rất rộng rãi cho site cá nhân)                                                                | Deploy tĩnh, nhanh, có HTTPS free sẵn                                                                                   |
+| Gmail API                                          | Free trong hạn mức quota mặc định của Google (đủ dùng cho 1 người)                                                                       | Không tốn phí trừ khi gọi cực nhiều                                                                                 |
+| Telegram Bot API                                   | Hoàn toàn free, không giới hạn đáng kể cho use case cá nhân                                                                               | —                                                                                                                         |
+| Domain (nếu muốn tên riêng thay vì subdomain) | Có thể bỏ qua, dùng domain miễn phí Vercel/Render cấp sẵn                                                                                   | Domain riêng (.com/.vn) thường mất phí hàng năm                                                                     |

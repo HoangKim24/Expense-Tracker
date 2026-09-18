@@ -31,6 +31,48 @@ public class TransactionsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteTransaction(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DeleteTransactionCommand(id), cancellationToken);
+        return Ok(new { success = result });
+    }
+
+    [HttpPost("upload-receipt")]
+    public async Task<IActionResult> UploadReceipt(IFormFile? file, [FromServices] IWebHostEnvironment env)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Không có file ảnh nào được tải lên." });
+
+        if (file.Length > 10 * 1024 * 1024) // 10MB limit
+            return BadRequest(new { message = "Kích thước ảnh tối đa là 10MB." });
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".heic" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+        {
+            extension = ".jpg";
+        }
+
+        var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+        var uploadsFolder = Path.Combine(webRoot, "uploads");
+        if (!Directory.Exists(uploadsFolder))
+        {
+            Directory.CreateDirectory(uploadsFolder);
+        }
+
+        var uniqueFileName = $"receipt_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var relativePath = $"/uploads/{uniqueFileName}";
+        return Ok(new { url = relativePath, path = relativePath });
+    }
+
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard([FromQuery] int month, [FromQuery] int year, CancellationToken cancellationToken)
     {

@@ -14,6 +14,7 @@ public class Transaction : BaseEntity
     
     public TransactionSource Source { get; set; } = TransactionSource.Manual;
     public string? MessageId { get; set; }
+    public string? ReceiptImagePath { get; set; }
     
     public Guid? CategoryId { get; set; }
     public Category? Category { get; set; }

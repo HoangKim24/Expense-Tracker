@@ -16,6 +16,7 @@ public class CreateTransactionCommand : IRequest<Guid>
     public Guid? CategoryId { get; set; }
     public TransactionSource Source { get; set; } = TransactionSource.Manual;
     public string? MessageId { get; set; }
+    public string? ReceiptImagePath { get; set; }
 }
 
 public class CreateTransactionCommandValidator : AbstractValidator<CreateTransactionCommand>
@@ -36,6 +37,9 @@ public class CreateTransactionCommandValidator : AbstractValidator<CreateTransac
 
         RuleFor(x => x.Source)
             .IsInEnum();
+
+        RuleFor(x => x.ReceiptImagePath)
+            .MaximumLength(500);
     }
 }
 
@@ -74,7 +78,8 @@ public class CreateTransactionCommandHandler : IRequestHandler<CreateTransaction
             CategoryId = request.CategoryId,
             Source = request.Source,
             MessageId = request.MessageId,
-            Type = request.Type
+            Type = request.Type,
+            ReceiptImagePath = request.ReceiptImagePath
         };
 
         await _transactionRepository.AddAsync(transaction, cancellationToken);

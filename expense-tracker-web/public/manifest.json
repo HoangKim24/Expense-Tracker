@@ -1,7 +1,7 @@
 {
   "name": "T-Expense",
   "short_name": "T-Expense",
-  "description": "Personal expense tracker for Gmail transaction notifications",
+  "description": "Personal expense tracker",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +18,8 @@ export type TransactionTypeValue = typeof TransactionType[keyof typeof Transacti
 
 export const TransactionSource = {
   Manual: 1,
-  Gmail: 2,
+  Telegram: 2,
+  SnapReceipt: 3,
 } as const;
 
 export type TransactionSourceValue = typeof TransactionSource[keyof typeof TransactionSource];
@@ -32,10 +33,21 @@ export type TransactionDto = {
   type: TransactionTypeValue;
   source: TransactionSourceValue;
   messageId?: string | null;
+  receiptImagePath?: string | null;
   categoryId?: string | null;
   categoryName?: string | null;
   categoryColor?: string | null;
   categoryIcon?: string | null;
+};
+
+export type CategoryDto = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+  type: TransactionTypeValue;
+  budget?: number | null;
 };
 
 export type DashboardMetricsDto = {
@@ -49,16 +61,6 @@ export type DashboardMetricsDto = {
   }>;
 };
 
-export type EmailSyncLogDto = {
-  messageId: string;
-  receivedDate: string;
-  subject: string;
-  merchantName: string;
-  status: number | string;
-  errorMessage?: string | null;
-  retryCount: number;
-};
-
 export type CreateTransactionRequest = {
   amount: number;
   transactionDate: string;
@@ -66,10 +68,25 @@ export type CreateTransactionRequest = {
   type: TransactionTypeValue;
   source: TransactionSourceValue;
   categoryId?: string | null;
+  receiptImagePath?: string | null;
 };
+
+export function getReceiptImageUrl(imagePath?: string | null): string | null {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) {
+    return imagePath;
+  }
+  const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+  return `${API_BASE_URL}${cleanPath}`;
+}
 
 export async function getTransactions() {
   const response = await api.get<TransactionDto[]>("/api/transactions");
+  return response.data;
+}
+
+export async function getCategories() {
+  const response = await api.get<CategoryDto[]>("/api/categories");
   return response.data;
 }
 
@@ -85,7 +102,19 @@ export async function createTransaction(payload: CreateTransactionRequest) {
   return response.data;
 }
 
-export async function getSyncLogs() {
-  const response = await api.get<EmailSyncLogDto[]>("/api/sync/logs");
+export async function deleteTransaction(id: string) {
+  const response = await api.delete<{ success: boolean }>(`/api/transactions/${id}`);
+  return response.data;
+}
+
+export async function uploadReceipt(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post<{ url: string; path: string }>("/api/transactions/upload-receipt", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 }

@@ -1,13 +1,15 @@
 using ExpenseTracker.Api.Middleware;
+using ExpenseTracker.Application;
 using ExpenseTracker.Infrastructure;
-// using ExpenseTracker.Application; // Add application layer DI if exists
-using ExpenseTracker.Application.Features.Transactions.Commands;
-using FluentValidation;
-using MediatR;
+using ExpenseTracker.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog (đọc cấu hình từ appsettings.json)
+builder.Host.UseSerilog((context, loggerConfiguration) =>
+    loggerConfiguration.ReadFrom.Configuration(context.Configuration));
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -19,11 +21,12 @@ builder.Services.AddExceptionHandler<CustomExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 // Add Layers DI
+builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
-// Add MediatR and FluentValidation
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(CreateTransactionCommand).Assembly));
-builder.Services.AddValidatorsFromAssembly(typeof(CreateTransactionCommandValidator).Assembly);
+// Health check
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ExpenseDbContext>("database");
 
 // Add CORS for Frontend
 builder.Services.AddCors(options =>
@@ -35,6 +38,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseExceptionHandler(); // Uses registered IExceptionHandler
+app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
 {
@@ -43,14 +47,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
-// Ensure DB is created/migrated on startup for Docker compose simplicity
+// SQL Server can take a moment to accept connections after its container starts.
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ExpenseTracker.Infrastructure.Persistence.ExpenseDbContext>();
-    db.Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<ExpenseDbContext>();
+    const int maxAttempts = 10;
+
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            await db.Database.MigrateAsync();
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            app.Logger.LogWarning(ex, "Database is not ready. Retrying migration ({Attempt}/{MaxAttempts}).", attempt, maxAttempts);
+            await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+    }
 }
 
 app.Run();

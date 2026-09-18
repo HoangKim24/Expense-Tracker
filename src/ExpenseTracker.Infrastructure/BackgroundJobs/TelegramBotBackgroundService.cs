@@ -20,8 +20,9 @@ public class TelegramBotBackgroundService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TelegramBotBackgroundService> _logger;
-    private readonly TelegramBotClient _botClient;
+    private TelegramBotClient? _botClient;
     private readonly long _authorizedUserId;
+    private readonly string? _botToken;
 
     public TelegramBotBackgroundService(
         IServiceProvider serviceProvider, 
@@ -31,15 +32,35 @@ public class TelegramBotBackgroundService : BackgroundService
         _serviceProvider = serviceProvider;
         _configuration = configuration;
         _logger = logger;
-        
-        var botToken = _configuration["Telegram:BotToken"] ?? "DUMMY_TOKEN";
-        _botClient = new TelegramBotClient(botToken);
-        
+
+        _botToken = _configuration["Telegram:BotToken"];
         long.TryParse(_configuration["Telegram:AuthorizedUserId"], out _authorizedUserId);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (string.IsNullOrWhiteSpace(_botToken))
+        {
+            _logger.LogWarning("Telegram Bot bị bỏ qua vì chưa cấu hình Telegram:BotToken.");
+            return;
+        }
+
+        if (_authorizedUserId == 0)
+        {
+            _logger.LogWarning("Telegram Bot bị bỏ qua vì chưa cấu hình Telegram:AuthorizedUserId.");
+            return;
+        }
+
+        try
+        {
+            _botClient = new TelegramBotClient(_botToken);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Telegram:BotToken không hợp lệ. Bot sẽ không khởi động.");
+            return;
+        }
+
         // Chờ API khởi động xong trước khi hook Bot
         await Task.Delay(3000, stoppingToken);
 
@@ -58,7 +79,7 @@ public class TelegramBotBackgroundService : BackgroundService
         _logger.LogInformation("Telegram Bot Companion đang hoạt động và lắng nghe tin nhắn...");
         
         // Block background task to keep it running
-        await Task.Delay(-1, stoppingToken);
+        await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
     private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)

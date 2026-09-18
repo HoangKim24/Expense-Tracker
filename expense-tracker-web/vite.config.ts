@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8080',
+      '/health': 'http://localhost:8080',
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -11,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'T-Expense',
         short_name: 'T-Expense',
-        description: 'Personal expense tracker for Gmail transaction notifications',
+        description: 'Personal expense tracker',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

@@ -12,6 +12,7 @@ public class TransactionDto
     public TransactionType Type { get; set; }
     public TransactionSource Source { get; set; }
     public string? MessageId { get; set; }
+    public string? ReceiptImagePath { get; set; }
     
     public Guid? CategoryId { get; set; }
     public string? CategoryName { get; set; }

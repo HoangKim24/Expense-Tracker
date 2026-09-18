@@ -4,7 +4,6 @@ import MainLayout from "./components/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import TransactionHistory from "./pages/TransactionHistory";
-import SyncSettings from "./pages/SyncSettings";
 
 function App() {
   return (
@@ -16,7 +15,6 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="history" element={<TransactionHistory />} />
-            <Route path="settings" element={<SyncSettings />} />
           </Route>
         </Routes>
       </Router>

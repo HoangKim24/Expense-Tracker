@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -12,6 +12,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Infrastructure", "src\ExpenseTracker.Infrastructure\ExpenseTracker.Infrastructure.csproj", "{BF6AA32D-00C0-4BDF-B9DE-C2B4D436F535}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Api", "src\ExpenseTracker.Api\ExpenseTracker.Api.csproj", "{FD4B5384-63E3-4F96-89BA-89A44A2BCFE0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Application.Tests", "tests\ExpenseTracker.Application.Tests\ExpenseTracker.Application.Tests.csproj", "{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,11 +40,16 @@ Global
 		{FD4B5384-63E3-4F96-89BA-89A44A2BCFE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD4B5384-63E3-4F96-89BA-89A44A2BCFE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD4B5384-63E3-4F96-89BA-89A44A2BCFE0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{841BEA2F-583B-476D-9222-AB1D5A845298} = {256FEC24-AD6F-44A9-9F4E-1D3FD0B439CF}
 		{8815DA4F-FFE2-42EE-B0D8-FBCD0A8A5671} = {256FEC24-AD6F-44A9-9F4E-1D3FD0B439CF}
 		{BF6AA32D-00C0-4BDF-B9DE-C2B4D436F535} = {256FEC24-AD6F-44A9-9F4E-1D3FD0B439CF}
 		{FD4B5384-63E3-4F96-89BA-89A44A2BCFE0} = {256FEC24-AD6F-44A9-9F4E-1D3FD0B439CF}
+		{C8E0B0D8-7AC7-4B4E-B9A7-39327B649FA8} = {256FEC24-AD6F-44A9-9F4E-1D3FD0B439CF}
 	EndGlobalSection
 EndGlobal

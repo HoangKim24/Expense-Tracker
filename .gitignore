@@ -2,6 +2,8 @@
 bin/
 obj/
 TestResults/
+.vs/
+/.idea
 *.user
 *.suo
 *.rsuser
@@ -32,7 +34,10 @@ appsettings.*.Local.json
 
 # IDE / OS
 .vs/
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
-.DS_Store
-Thumbs.db
+# Uploads
+src/ExpenseTracker.Api/wwwroot/uploads/*
+!src/ExpenseTracker.Api/wwwroot/uploads/.gitkeep
+

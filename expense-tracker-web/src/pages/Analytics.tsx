@@ -1,7 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { getTransactions, type TransactionDto } from "../lib/api";
 
 export default function Analytics() {
   const [activeTab, setActiveTab] = useState("Tháng này");
+  const [transactions, setTransactions] = useState<TransactionDto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    getTransactions()
+      .then(setTransactions)
+      .catch(() => {
+        // Fallback or ignore for now
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN").format(val) + "đ";
+
+  // Compute breakdown
+  const categoryBreakdown = useMemo(() => {
+    const expenseTx = transactions.filter(t => t.type === 1);
+    const total = expenseTx.reduce((sum, t) => sum + t.amount, 0);
+    
+    const byCategory = expenseTx.reduce((acc, t) => {
+      const cat = t.description || t.merchant || "Khác";
+      acc[cat] = (acc[cat] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const sorted = Object.entries(byCategory)
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, amount]) => ({ name, amount, percentage: total > 0 ? (amount / total) * 100 : 0 }));
+    
+    // Group small ones into "Khác" if too many
+    if (sorted.length > 4) {
+      const top3 = sorted.slice(0, 3);
+      const othersAmount = sorted.slice(3).reduce((sum, c) => sum + c.amount, 0);
+      top3.push({ name: "Khác", amount: othersAmount, percentage: total > 0 ? (othersAmount / total) * 100 : 0 });
+      return { total, breakdown: top3 };
+    }
+    return { total, breakdown: sorted };
+  }, [transactions]);
+
+  const colors = ["stroke-primary", "stroke-secondary-container", "stroke-tertiary-fixed-dim", "stroke-surface-variant"];
+  const bgColors = ["bg-primary", "bg-secondary-container", "bg-tertiary-fixed-dim", "bg-surface-variant"];
 
   return (
     <div className="px-[16px] space-y-[24px] pt-[16px]">
@@ -46,49 +88,50 @@ export default function Analytics() {
         <div className="flex flex-col items-center justify-center py-[24px] relative">
           {/* SVG Donut Chart */}
           <svg className="w-48 h-48 donut-chart" viewBox="0 0 42 42">
-            <circle className="stroke-primary" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="40 60" strokeDashoffset="0" strokeWidth="5"></circle>
-            <circle className="stroke-secondary-container" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="30 70" strokeDashoffset="-40" strokeWidth="5"></circle>
-            <circle className="stroke-tertiary-fixed-dim" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="15 85" strokeDashoffset="-70" strokeWidth="5"></circle>
-            <circle className="stroke-surface-variant" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="15 85" strokeDashoffset="-85" strokeWidth="5"></circle>
+            {categoryBreakdown.breakdown.map((cat, i) => {
+              const previousPercentages = categoryBreakdown.breakdown.slice(0, i).reduce((sum, c) => sum + c.percentage, 0);
+              const dasharray = `${cat.percentage} ${100 - cat.percentage}`;
+              const dashoffset = i === 0 ? 0 : -previousPercentages;
+              
+              return (
+                <circle 
+                  key={cat.name}
+                  className={colors[i % colors.length]} 
+                  cx="21" cy="21" fill="transparent" r="15.915" 
+                  strokeDasharray={dasharray} 
+                  strokeDashoffset={dashoffset} 
+                  strokeWidth="5"
+                ></circle>
+              );
+            })}
+            {categoryBreakdown.breakdown.length === 0 && (
+              <circle className="stroke-surface-variant" cx="21" cy="21" fill="transparent" r="15.915" strokeDasharray="100 0" strokeDashoffset="0" strokeWidth="5"></circle>
+            )}
           </svg>
           
           {/* Center Text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-[12px] font-semibold text-on-surface-variant">Tổng chi</span>
-            <span className="text-[24px] font-semibold text-on-surface">15,4Mđ</span>
+            <span className="text-[20px] font-semibold text-on-surface">{categoryBreakdown.total > 0 ? formatCurrency(categoryBreakdown.total) : '0đ'}</span>
           </div>
         </div>
 
         {/* Legend Grid */}
         <div className="grid grid-cols-2 gap-[16px]">
-          <div className="flex items-center gap-[8px]">
-            <span className="w-3 h-3 rounded-full bg-primary"></span>
-            <div className="flex flex-col">
-              <span className="text-[12px] font-semibold text-on-surface-variant">Ăn uống</span>
-              <span className="text-[14px] text-on-surface font-bold">40%</span>
+          {categoryBreakdown.breakdown.map((cat, i) => (
+            <div key={cat.name} className="flex items-center gap-[8px]">
+              <span className={`w-3 h-3 rounded-full ${bgColors[i % bgColors.length]}`}></span>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-semibold text-on-surface-variant truncate w-24">{cat.name}</span>
+                <span className="text-[14px] text-on-surface font-bold">{Math.round(cat.percentage)}%</span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-[8px]">
-            <span className="w-3 h-3 rounded-full bg-secondary-container"></span>
-            <div className="flex flex-col">
-              <span className="text-[12px] font-semibold text-on-surface-variant">Mua sắm</span>
-              <span className="text-[14px] text-on-surface font-bold">30%</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-[8px]">
-            <span className="w-3 h-3 rounded-full bg-tertiary-fixed-dim"></span>
-            <div className="flex flex-col">
-              <span className="text-[12px] font-semibold text-on-surface-variant">Di chuyển</span>
-              <span className="text-[14px] text-on-surface font-bold">15%</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-[8px]">
-            <span className="w-3 h-3 rounded-full bg-surface-variant"></span>
-            <div className="flex flex-col">
-              <span className="text-[12px] font-semibold text-on-surface-variant">Hóa đơn</span>
-              <span className="text-[14px] text-on-surface font-bold">15%</span>
-            </div>
-          </div>
+          ))}
+          {categoryBreakdown.breakdown.length === 0 && (
+            <p className="col-span-2 text-center text-sm text-outline">
+              {isLoading ? "Đang tải dữ liệu..." : "Chưa có dữ liệu giao dịch."}
+            </p>
+          )}
         </div>
       </section>
 
@@ -98,10 +141,10 @@ export default function Analytics() {
           <div className="space-y-[4px]">
             <h2 className="text-[24px] font-semibold text-on-surface">Tuần này</h2>
             <div className="flex items-center gap-[8px]">
-              <span className="text-[28px] font-semibold text-on-surface">5.840.000đ</span>
+              <span className="text-[28px] font-semibold text-on-surface">{formatCurrency(categoryBreakdown.total)}</span>
               <span className="flex items-center text-error text-[12px] font-semibold bg-error-container px-2 py-0.5 rounded-full">
                 <span className="material-symbols-outlined text-[14px] leading-none">trending_up</span>
-                +15%
+                100%
               </span>
             </div>
           </div>
@@ -111,7 +154,7 @@ export default function Analytics() {
         <div className="flex items-end justify-between h-48 pt-[24px] relative">
           {/* Bar 1 */}
           <div className="flex flex-col items-center gap-[8px] w-12 z-10">
-            <div className="w-full bg-surface-container-high rounded-t-lg h-32 relative overflow-hidden">
+            <div className="w-full bg-surface-container-high rounded-t-lg h-10 relative overflow-hidden">
               <div className="absolute bottom-0 w-full bg-outline-variant h-full animate-grow-y"></div>
             </div>
             <span className="text-[12px] font-semibold text-on-surface-variant">Tuần trước</span>

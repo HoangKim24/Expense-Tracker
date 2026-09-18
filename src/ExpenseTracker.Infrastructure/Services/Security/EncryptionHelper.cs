@@ -11,12 +11,22 @@ public class EncryptionHelper
     public EncryptionHelper(IConfiguration configuration)
     {
         // 32 chars = 256 bits for AES-256
-        _secretKey = configuration["Encryption:SecretKey"] ?? "DefaultSuperSecretKeyForAes256!!"; 
-        
-        if (_secretKey.Length != 32)
+        var secretKey = configuration["Encryption:SecretKey"];
+
+        if (string.IsNullOrWhiteSpace(secretKey))
         {
-            throw new ArgumentException("SecretKey must be exactly 32 characters long for AES-256.");
+            throw new InvalidOperationException(
+                "Encryption:SecretKey is not configured. " +
+                "Set a 32-character secret via appsettings, user-secrets, or the Encryption__SecretKey environment variable.");
         }
+
+        if (secretKey.Length != 32)
+        {
+            throw new InvalidOperationException(
+                $"Encryption:SecretKey must be exactly 32 characters long for AES-256 (current length: {secretKey.Length}).");
+        }
+
+        _secretKey = secretKey;
     }
 
     public string Encrypt(string plainText)

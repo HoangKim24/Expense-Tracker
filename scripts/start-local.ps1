@@ -2,8 +2,8 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host "🚀 Đang khởi động T-Expense System (Backend + Web)..." -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
-# 1. Đảm bảo LocalDB hoạt động
-sqllocaldb start MSSQLLocalDB | Out-Null
+# 1. Đảm bảo kết nối tới SQL Server (.)
+# SQL Server chính (MSSQLSERVER) đang hoạt động sẵn trên máy
 
 # 2. Khởi chạy Backend API (.NET 8)
 Write-Host "👉 Khởi chạy Backend API (.NET 8) tại http://localhost:5080 ..." -ForegroundColor Yellow

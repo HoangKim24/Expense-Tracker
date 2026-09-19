@@ -8,7 +8,10 @@ Accept: application/json
 GET {{ExpenseTracker.Api_HostAddress}}/api/transactions/dashboard?month=5&year=2026
 Accept: application/json
 
+###
+
 GET {{ExpenseTracker.Api_HostAddress}}/api/categories
 Accept: application/json
 
 ###
+

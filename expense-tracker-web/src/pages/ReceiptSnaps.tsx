@@ -413,31 +413,29 @@ export default function ReceiptSnaps() {
                 /* LIVE CAMERA FEED */
                 <>
                   {hasCameraPermission === false ? (
-                    <div className="text-center px-6 space-y-4">
-                      <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto text-slate-300">
-                        <ImageIcon size={28} />
+                    <div className="text-center px-6 space-y-3.5">
+                      <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto text-amber-300">
+                        <Camera size={28} />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                          Vui lòng cho phép quyền truy cập camera hoặc chụp trực tiếp qua ứng dụng máy ảnh.
+                        <p className="text-sm font-bold text-white">Chưa mở được camera trực tiếp</p>
+                        <p className="text-xs text-slate-300 leading-relaxed max-w-[260px] mx-auto">
+                          Safari yêu cầu đường dẫn <b>HTTPS (Vercel)</b> hoặc cấp quyền ở biểu tượng <b>aA</b> thanh địa chỉ.
                         </p>
                       </div>
-                      <div className="flex flex-col gap-2 w-full max-w-[220px] mx-auto">
-                        <button
-                          type="button"
-                          onClick={() => nativeCameraInputRef.current?.click()}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-400 font-bold text-xs text-black shadow-lg active:scale-95 transition"
+                      <div className="flex flex-col gap-2 w-full max-w-[240px] mx-auto pt-1">
+                        <label
+                          htmlFor="receipt-native-camera-input"
+                          className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 font-black text-xs text-black shadow-xl active:scale-95 transition"
                         >
-                          <Camera size={16} /> Mở Máy Ảnh Chụp Ngay
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
+                          <Camera size={16} /> Mở Máy Ảnh iPhone (Cách 2)
+                        </label>
+                        <label
+                          htmlFor="receipt-gallery-input"
+                          className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
                         >
                           <ImageIcon size={16} /> Chọn ảnh từ thư viện
-                        </button>
+                        </label>
                       </div>
                     </div>
                   ) : (
@@ -541,15 +539,14 @@ export default function ReceiptSnaps() {
 
               {/* Nút Chụp bằng Camera Gốc iPhone (Cách 2) - Nổi bật, bấm là mở thẳng máy ảnh */}
               {!capturedImage && (
-                <button
-                  type="button"
-                  onClick={() => nativeCameraInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-md active:scale-95 transition"
+                <label
+                  htmlFor="receipt-native-camera-input"
+                  className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-md active:scale-95 transition"
                   title="Mở ứng dụng máy ảnh gốc iPhone"
                 >
                   <Camera size={14} />
                   <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
-                </button>
+                </label>
               )}
             </div>
           </div>
@@ -560,14 +557,13 @@ export default function ReceiptSnaps() {
               /* LIVE CONTROLS */
               <div className="w-full flex items-center justify-around px-4">
                 {/* 1. Nút chọn ảnh thư viện */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 shrink-0 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg"
+                <label
+                  htmlFor="receipt-gallery-input"
+                  className="cursor-pointer w-12 h-12 shrink-0 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg"
                   title="Chọn ảnh từ máy"
                 >
                   <ImageIcon size={20} />
-                </button>
+                </label>
 
                 {/* 2. NÚT CHỤP LOCKET SHUTTER LỚN */}
                 <button
@@ -581,14 +577,13 @@ export default function ReceiptSnaps() {
                 </button>
 
                 {/* 3. Nút mở máy ảnh iPhone (Cách 2) */}
-                <button
-                  type="button"
-                  onClick={() => nativeCameraInputRef.current?.click()}
-                  className="w-12 h-12 shrink-0 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 flex items-center justify-center active:scale-90 transition shadow-lg"
+                <label
+                  htmlFor="receipt-native-camera-input"
+                  className="cursor-pointer w-12 h-12 shrink-0 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 flex items-center justify-center active:scale-90 transition shadow-lg"
                   title="Mở máy ảnh iPhone (Cách 2)"
                 >
                   <Camera size={20} />
-                </button>
+                </label>
 
                 {/* 4. Nút lật camera trước / sau */}
                 <button
@@ -892,20 +887,22 @@ export default function ReceiptSnaps() {
         onDelete={handleDelete}
       />
 
-      {/* Hidden File Inputs for Gallery & Native Camera fallback */}
+      {/* Hidden File Inputs for Gallery & Native Camera fallback (Không dùng display:none) */}
       <input
         type="file"
+        id="receipt-gallery-input"
         ref={fileInputRef}
         accept="image/jpeg,image/png,image/heic,image/*"
-        className="hidden"
+        style={{ position: "fixed", top: "-9999px", left: "-9999px", opacity: 0, width: "1px", height: "1px" }}
         onChange={handleFileChange}
       />
       <input
         type="file"
+        id="receipt-native-camera-input"
         ref={nativeCameraInputRef}
         accept="image/jpeg,image/png,image/heic,image/*"
         capture="environment"
-        className="hidden"
+        style={{ position: "fixed", top: "-9999px", left: "-9999px", opacity: 0, width: "1px", height: "1px" }}
         onChange={handleFileChange}
       />
     </div>

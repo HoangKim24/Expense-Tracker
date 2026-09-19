@@ -311,23 +311,23 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
           )}
         </AnimatePresence>
 
-        {/* Hidden Canvas & File Inputs */}
+        {/* Hidden Canvas & Native Inputs (Không dùng display:none để iOS Safari không chặn) */}
         <canvas ref={canvasRef} className="hidden" />
-        {/* Input mở thẳng Camera máy ảnh iPhone (Cách 2) */}
         <input
+          id="locket-native-camera-input"
           ref={nativeCameraInputRef}
           type="file"
           accept="image/jpeg,image/png,image/heic,image/*"
           capture="environment"
-          className="hidden"
+          style={{ position: "fixed", top: "-9999px", left: "-9999px", opacity: 0, width: "1px", height: "1px" }}
           onChange={handleFileChange}
         />
-        {/* Input chọn ảnh từ thư viện */}
         <input
+          id="locket-gallery-input"
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/heic,image/*"
-          className="hidden"
+          style={{ position: "fixed", top: "-9999px", left: "-9999px", opacity: 0, width: "1px", height: "1px" }}
           onChange={handleFileChange}
         />
 
@@ -372,29 +372,29 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
               /* LIVE CAMERA FEED */
               <>
                 {hasCameraPermission === false ? (
-                  <div className="text-center px-6 space-y-4">
-                    <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/10 flex items-center justify-center mx-auto text-slate-300">
-                      <ImageIcon size={32} />
+                  <div className="text-center px-6 space-y-3.5">
+                    <div className="w-14 h-14 rounded-3xl bg-white/10 border border-white/10 flex items-center justify-center mx-auto text-amber-300 shadow-inner">
+                      <Camera size={28} />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
-                      <p className="text-xs text-slate-400">Bạn có thể mở camera máy ảnh hoặc chọn ảnh.</p>
+                      <p className="text-sm font-bold text-white">Chưa mở được camera trực tiếp</p>
+                      <p className="text-xs text-slate-300 leading-relaxed max-w-[260px] mx-auto">
+                        Safari yêu cầu đường dẫn <b>HTTPS (Vercel)</b> hoặc cấp quyền ở biểu tượng <b>aA</b> thanh địa chỉ.
+                      </p>
                     </div>
-                    <div className="flex flex-col gap-2 w-full max-w-[220px] mx-auto">
-                      <button
-                        type="button"
-                        onClick={() => nativeCameraInputRef.current?.click()}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-400 font-bold text-xs text-black shadow-lg active:scale-95 transition"
+                    <div className="flex flex-col gap-2 w-full max-w-[240px] mx-auto pt-1">
+                      <label
+                        htmlFor="locket-native-camera-input"
+                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 font-black text-xs text-black shadow-xl active:scale-95 transition"
                       >
                         <Camera size={16} /> Mở Máy Ảnh iPhone (Cách 2)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
+                      </label>
+                      <label
+                        htmlFor="locket-gallery-input"
+                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
                       >
                         <ImageIcon size={16} /> Chọn ảnh từ thư viện
-                      </button>
+                      </label>
                     </div>
                   </div>
                 ) : (
@@ -486,15 +486,14 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
           {/* NÚT MỞ MÁY ẢNH IPHONE (CÁCH 2) - LUÔN HIỂN THỊ RÕ RÀNG */}
           {!capturedImage && (
             <div className="flex justify-center my-1 z-10">
-              <button
-                type="button"
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold active:scale-95 transition shadow-sm"
+              <label
+                htmlFor="locket-native-camera-input"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold active:scale-95 transition shadow-sm"
                 title="Mở ứng dụng máy ảnh gốc iPhone"
               >
                 <Camera size={14} />
                 <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
-              </button>
+              </label>
             </div>
           )}
 
@@ -503,14 +502,13 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
             /* CAMERA CONTROL BUTTONS */
             <div className="w-full pt-1 pb-2 flex items-center justify-around px-3">
               {/* Pick from Library (Rounded Square) */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
+              <label
+                htmlFor="locket-gallery-input"
+                className="cursor-pointer w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
                 title="Chọn ảnh từ thư viện"
               >
                 <ImageIcon size={20} />
-              </button>
+              </label>
 
               {/* The Iconic Double-Ring Locket Shutter Button */}
               <button
@@ -524,14 +522,13 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
               </button>
 
               {/* Quick Native Camera Button (Cách 2) */}
-              <button
-                type="button"
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className="w-12 h-12 rounded-2xl bg-amber-400/20 hover:bg-amber-400/30 active:scale-90 border border-amber-400/50 flex items-center justify-center text-amber-300 backdrop-blur-md transition shadow-lg"
+              <label
+                htmlFor="locket-native-camera-input"
+                className="cursor-pointer w-12 h-12 rounded-2xl bg-amber-400/20 hover:bg-amber-400/30 active:scale-90 border border-amber-400/50 flex items-center justify-center text-amber-300 backdrop-blur-md transition shadow-lg"
                 title="Mở máy ảnh iPhone (Cách 2)"
               >
                 <Camera size={20} />
-              </button>
+              </label>
 
               {/* Camera Flip Button */}
               <button

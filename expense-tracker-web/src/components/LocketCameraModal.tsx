@@ -98,30 +98,33 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     if (newStream) {
       setStream(newStream);
       setHasCameraPermission(true);
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.muted = true;
-        video.setAttribute("playsinline", "true");
-        video.setAttribute("webkit-playsinline", "true");
-        video.srcObject = newStream;
-        video.onloadedmetadata = () => {
-          video.play().catch(() => {});
-        };
-        video.play().catch(() => {});
-      }
     }
   }, [stopStream]);
 
-  // Gắn stream vào thẻ video khi stream thay đổi
+  // Gắn stream vào thẻ video một lần duy nhất và lắng nghe sự kiện phát hình
   useEffect(() => {
-    if (videoRef.current && stream && !capturedImage) {
-      const video = videoRef.current;
-      video.muted = true;
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("webkit-playsinline", "true");
-      video.srcObject = stream;
+    const video = videoRef.current;
+    if (!video || !stream || capturedImage) return;
+
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.srcObject = stream;
+
+    const handlePlay = () => {
       video.play().catch(() => {});
-    }
+    };
+
+    video.addEventListener("loadedmetadata", handlePlay);
+    video.addEventListener("canplay", handlePlay);
+    handlePlay();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", handlePlay);
+      video.removeEventListener("canplay", handlePlay);
+    };
   }, [stream, capturedImage]);
 
   // Quản lý đóng/mở modal
@@ -358,13 +361,8 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
 
           {/* MAIN VIEWFINDER / PHOTO CANVAS */}
           <div 
-            className="relative flex-1 w-full aspect-[4/5] sm:aspect-[4/5] bg-neutral-950 rounded-[38px] overflow-hidden border-2 border-white/15 shadow-2xl flex items-center justify-center select-none my-1"
-            style={{
-              WebkitMaskImage: "-webkit-radial-gradient(white, black)",
-              transform: "translateZ(0)",
-              WebkitTransform: "translateZ(0)",
-              isolation: "isolate"
-            }}
+            onClick={() => videoRef.current?.play().catch(() => {})}
+            className="relative flex-1 w-full aspect-[4/5] sm:aspect-[4/5] bg-black rounded-[38px] overflow-hidden border-2 border-white/20 shadow-2xl flex items-center justify-center select-none my-1"
           >
             {!capturedImage ? (
               /* LIVE CAMERA FEED */
@@ -401,11 +399,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                     autoPlay
                     playsInline
                     muted
-                    className={`w-full h-full object-cover pointer-events-none ${facingMode === "user" ? "-scale-x-100" : ""}`}
-                    style={{
-                      transform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
-                      WebkitTransform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
-                    }}
+                    className={`w-full h-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
                   />
                 )}
 

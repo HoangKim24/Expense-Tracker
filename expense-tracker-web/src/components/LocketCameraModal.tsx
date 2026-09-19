@@ -4,7 +4,7 @@ import {
   X, 
   RefreshCw, 
   Image as ImageIcon, 
-  Send, 
+  Check, 
   Sparkles, 
   Zap, 
   RotateCcw,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { compressImageFile } from "../lib/imageUtils";
 import { 
   getCategories, 
   uploadReceipt, 
@@ -239,21 +240,25 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     setAmount(new Intl.NumberFormat("vi-VN").format(nextVal));
   };
 
-  // Gửi vào sổ chi tiêu (Send to Ledger)
+  // Gửi vào sổ chi tiêu (Lưu hóa đơn)
   const handleSubmit = async () => {
     const numericAmount = Number(amount.replace(/\D/g, ""));
     if (!numericAmount || numericAmount <= 0) {
-      toast.error("Vui lòng chạm vào nhãn tiền để nhập số tiền chi tiêu!");
+      toast.warning("Chưa nhập số tiền chi tiêu", {
+        description: "Vui lòng chạm vào nhãn tiền ở giữa ảnh để nhập số tiền hóa đơn.",
+      });
       amountInputRef.current?.focus();
       return;
     }
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Đang lưu hóa đơn vào sổ...");
     try {
       let receiptPath: string | null = null;
       if (capturedFile) {
-        toast.info("Đang tải ảnh hóa đơn...");
-        const uploadRes = await uploadReceipt(capturedFile);
+        // Tự động nén ảnh phía client siêu tốc
+        const optimizedFile = await compressImageFile(capturedFile);
+        const uploadRes = await uploadReceipt(optimizedFile);
         receiptPath = uploadRes.path;
       }
 
@@ -279,7 +284,8 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         colors: ["#facc15", "#38bdf8", "#34d399", "#f43f5e"],
       });
 
-      toast.success("Đã gửi vào Sổ Chi Tiêu thành công!", {
+      toast.success("Đã lưu hóa đơn thành công!", {
+        id: toastId,
         description: `-${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ • ${description || defaultDesc}`,
       });
 
@@ -287,7 +293,10 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       onSuccess?.();
       onClose();
     } catch {
-      toast.error("Không thể lưu giao dịch. Vui lòng thử lại!");
+      toast.error("Không thể lưu hóa đơn", {
+        id: toastId,
+        description: "Vui lòng kiểm tra lại kết nối mạng và thử lại.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -483,31 +492,17 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
             )}
           </div>
 
-          {/* NÚT MỞ MÁY ẢNH IPHONE (CÁCH 2) - LUÔN HIỂN THỊ RÕ RÀNG */}
-          {!capturedImage && (
-            <div className="flex justify-center my-1 z-10">
-              <label
-                htmlFor="locket-native-camera-input"
-                className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold active:scale-95 transition shadow-sm"
-                title="Mở ứng dụng máy ảnh gốc iPhone"
-              >
-                <Camera size={14} />
-                <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
-              </label>
-            </div>
-          )}
-
           {/* BOTTOM CONTROLS BAR */}
           {!capturedImage ? (
             /* CAMERA CONTROL BUTTONS */
-            <div className="w-full pt-1 pb-2 flex items-center justify-around px-3">
+            <div className="w-full pt-3 pb-2 flex items-center justify-around px-4">
               {/* Pick from Library (Rounded Square) */}
               <label
                 htmlFor="locket-gallery-input"
-                className="cursor-pointer w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
+                className="cursor-pointer w-13 h-13 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
                 title="Chọn ảnh từ thư viện"
               >
-                <ImageIcon size={20} />
+                <ImageIcon size={22} />
               </label>
 
               {/* The Iconic Double-Ring Locket Shutter Button */}
@@ -515,30 +510,21 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 type="button"
                 onClick={handleCapture}
                 disabled={hasCameraPermission === false}
-                className="relative flex items-center justify-center w-20 h-20 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
+                className="relative flex items-center justify-center w-21 h-21 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
                 title="Chụp ảnh trực tiếp"
               >
                 <span className="w-full h-full rounded-full bg-white shadow-inner flex items-center justify-center" />
               </button>
-
-              {/* Quick Native Camera Button (Cách 2) */}
-              <label
-                htmlFor="locket-native-camera-input"
-                className="cursor-pointer w-12 h-12 rounded-2xl bg-amber-400/20 hover:bg-amber-400/30 active:scale-90 border border-amber-400/50 flex items-center justify-center text-amber-300 backdrop-blur-md transition shadow-lg"
-                title="Mở máy ảnh iPhone (Cách 2)"
-              >
-                <Camera size={20} />
-              </label>
 
               {/* Camera Flip Button */}
               <button
                 type="button"
                 onClick={handleToggleCamera}
                 disabled={hasCameraPermission === false}
-                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
+                className="w-13 h-13 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
                 title="Đổi camera trước/sau"
               >
-                <RefreshCw size={20} />
+                <RefreshCw size={22} />
               </button>
             </div>
           ) : (
@@ -576,20 +562,21 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
               </div>
 
-              {/* Iconic Locket Yellow Send Button */}
+              {/* Nút Lưu Hóa Đơn & Gửi Vào Sổ Chi Tiêu */}
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting || !amount}
-                className="w-full py-4 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] font-black text-slate-950 text-sm shadow-[0_0_30px_rgba(251,191,36,0.45)] transition flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:pointer-events-none"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] font-black text-slate-950 text-sm shadow-[0_0_30px_rgba(251,191,36,0.45)] transition flex items-center justify-center gap-2.5 disabled:opacity-50"
+                title="Lưu hóa đơn vào sổ chi tiêu"
               >
                 {isSubmitting ? (
                   <>
-                    <RefreshCw size={19} className="animate-spin" /> Đang gửi vào Sổ Chi Tiêu...
+                    <RefreshCw size={19} className="animate-spin" /> Đang lưu hóa đơn...
                   </>
                 ) : (
                   <>
-                    <Send size={18} className="fill-slate-950" /> Gửi Vào Sổ Chi Tiêu
+                    <Check size={19} strokeWidth={2.8} /> Lưu Hóa Đơn (Vào Sổ)
                   </>
                 )}
               </button>

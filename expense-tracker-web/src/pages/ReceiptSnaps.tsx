@@ -5,7 +5,6 @@ import {
   Image as ImageIcon, 
   RefreshCw, 
   RotateCcw, 
-  Send, 
   ChevronDown,
   X,
   HelpCircle,
@@ -15,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { compressImageFile } from "../lib/imageUtils";
 import { 
   getTransactions, 
   deleteTransaction, 
@@ -267,21 +267,25 @@ export default function ReceiptSnaps() {
     setAmount(new Intl.NumberFormat("vi-VN").format(nextVal));
   };
 
-  // Gửi vào sổ chi tiêu
+  // Gửi vào sổ chi tiêu (Lưu hóa đơn)
   const handleSubmit = async () => {
     const numericAmount = Number(amount.replace(/\D/g, ""));
     if (!numericAmount || numericAmount <= 0) {
-      toast.error("Vui lòng chạm vào nhãn tiền để nhập số tiền chi tiêu!");
+      toast.warning("Chưa nhập số tiền chi tiêu", {
+        description: "Vui lòng chạm vào nhãn tiền ở giữa ảnh để nhập số tiền hóa đơn.",
+      });
       amountInputRef.current?.focus();
       return;
     }
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Đang lưu hóa đơn vào sổ...");
     try {
       let receiptPath: string | null = null;
       if (capturedFile) {
-        toast.info("Đang tải ảnh hóa đơn...");
-        const uploadRes = await uploadReceipt(capturedFile);
+        // Tự động nén ảnh phía client siêu tốc
+        const optimizedFile = await compressImageFile(capturedFile);
+        const uploadRes = await uploadReceipt(optimizedFile);
         receiptPath = uploadRes.path;
       }
 
@@ -305,7 +309,8 @@ export default function ReceiptSnaps() {
         colors: ["#facc15", "#38bdf8", "#34d399", "#f43f5e"],
       });
 
-      toast.success("Đã ghi nhận chi phí vào sổ thành công!", {
+      toast.success("Đã ghi nhận hóa đơn vào sổ thành công!", {
+        id: toastId,
         description: `-${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ • ${description || defaultDesc}`,
       });
 
@@ -318,7 +323,10 @@ export default function ReceiptSnaps() {
       window.dispatchEvent(new CustomEvent("transaction-updated"));
       startCamera(facingMode);
     } catch {
-      toast.error("Không thể lưu giao dịch. Vui lòng thử lại!");
+      toast.error("Không thể lưu hóa đơn", {
+        id: toastId,
+        description: "Vui lòng kiểm tra lại kết nối mạng và thử lại.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -330,9 +338,13 @@ export default function ReceiptSnaps() {
       await deleteTransaction(id);
       setReceiptTransactions((prev) => prev.filter((t) => t.id !== id));
       window.dispatchEvent(new CustomEvent("transaction-updated"));
-      toast.success("Đã xóa hóa đơn và hoàn lại chi phí!");
+      toast.success("Đã xóa hóa đơn thành công!", {
+        description: "Khoản tiền đã được hoàn lại vào ngân sách của bạn.",
+      });
     } catch {
-      toast.error("Không thể xóa hóa đơn này!");
+      toast.error("Không thể xóa hóa đơn", {
+        description: "Vui lòng thử lại sau giây lát.",
+      });
     }
   };
 
@@ -537,17 +549,6 @@ export default function ReceiptSnaps() {
                 <ChevronDown size={14} className="text-white/70" />
               </button>
 
-              {/* Nút Chụp bằng Camera Gốc iPhone (Cách 2) - Nổi bật, bấm là mở thẳng máy ảnh */}
-              {!capturedImage && (
-                <label
-                  htmlFor="receipt-native-camera-input"
-                  className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-md active:scale-95 transition"
-                  title="Mở ứng dụng máy ảnh gốc iPhone"
-                >
-                  <Camera size={14} />
-                  <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
-                </label>
-              )}
             </div>
           </div>
 
@@ -576,16 +577,7 @@ export default function ReceiptSnaps() {
                   <span className="w-full h-full rounded-full bg-white transition" />
                 </button>
 
-                {/* 3. Nút mở máy ảnh iPhone (Cách 2) */}
-                <label
-                  htmlFor="receipt-native-camera-input"
-                  className="cursor-pointer w-12 h-12 shrink-0 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 flex items-center justify-center active:scale-90 transition shadow-lg"
-                  title="Mở máy ảnh iPhone (Cách 2)"
-                >
-                  <Camera size={20} />
-                </label>
-
-                {/* 4. Nút lật camera trước / sau */}
+                {/* 3. Nút lật camera trước / sau */}
                 <button
                   type="button"
                   onClick={handleToggleCamera}
@@ -611,16 +603,17 @@ export default function ReceiptSnaps() {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !amount}
-                  className="flex-1 py-3.5 px-6 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-black text-sm shadow-[0_0_25px_rgba(251,191,36,0.4)] active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
+                  disabled={isSubmitting}
+                  className="flex-1 py-3.5 px-6 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-black text-sm shadow-[0_0_25px_rgba(251,191,36,0.4)] active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  title="Lưu hóa đơn vào sổ chi tiêu"
                 >
                   {isSubmitting ? (
                     <>
-                      <RefreshCw size={18} className="animate-spin" /> Đang lưu...
+                      <RefreshCw size={18} className="animate-spin" /> Đang lưu hóa đơn...
                     </>
                   ) : (
                     <>
-                      <Send size={18} className="fill-slate-950" /> Gửi Vào Sổ Chi Tiêu
+                      <Check size={18} strokeWidth={2.5} /> Lưu Hóa Đơn (Vào Sổ)
                     </>
                   )}
                 </button>

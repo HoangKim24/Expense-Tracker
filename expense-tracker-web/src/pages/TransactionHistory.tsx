@@ -50,9 +50,13 @@ export default function TransactionHistory() {
       await deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       window.dispatchEvent(new CustomEvent("transaction-updated"));
-      toast.success("Đã xóa giao dịch thành công!");
+      toast.success("Đã xóa giao dịch thành công!", {
+        description: "Lịch sử chi tiêu đã được cập nhật.",
+      });
     } catch {
-      toast.error("Không thể xóa giao dịch. Vui lòng thử lại!");
+      toast.error("Không thể xóa giao dịch", {
+        description: "Vui lòng thử lại sau giây lát.",
+      });
     }
   };
 

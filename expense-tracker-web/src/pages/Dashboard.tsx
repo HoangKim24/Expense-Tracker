@@ -166,7 +166,9 @@ export default function Dashboard() {
     e.preventDefault();
     const numericAmount = Number(amount.replace(/\D/g, ""));
     if (!numericAmount || numericAmount <= 0) {
-      toast.error("Vui lòng nhập số tiền hợp lệ!");
+      toast.warning("Chưa nhập số tiền", {
+        description: "Vui lòng nhập số tiền chi tiêu lớn hơn 0đ.",
+      });
       return;
     }
 
@@ -191,7 +193,7 @@ export default function Dashboard() {
         colors: ["#3b82f6", "#10b981", "#ec4899"],
       });
 
-      toast.success(`Đã ghi sổ ${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ`, {
+      toast.success(`Đã ghi sổ: -${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ`, {
         description: note.trim() || defaultDesc,
       });
 
@@ -199,7 +201,9 @@ export default function Dashboard() {
       setNote("");
       loadData();
     } catch {
-      toast.error("Lỗi khi ghi sổ giao dịch. Hãy thử lại!");
+      toast.error("Không thể ghi sổ giao dịch", {
+        description: "Vui lòng kiểm tra lại kết nối mạng và thử lại.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -210,9 +214,13 @@ export default function Dashboard() {
     try {
       await deleteTransaction(id);
       loadData();
-      toast.success("Đã xóa giao dịch thành công!");
+      toast.success("Đã xóa giao dịch thành công!", {
+        description: "Dữ liệu chi tiêu đã được cập nhật lại.",
+      });
     } catch {
-      toast.error("Lỗi khi xóa giao dịch!");
+      toast.error("Không thể xóa giao dịch", {
+        description: "Vui lòng thử lại sau giây lát.",
+      });
     }
   };
 

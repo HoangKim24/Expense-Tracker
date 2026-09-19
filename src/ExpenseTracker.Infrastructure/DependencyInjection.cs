@@ -51,6 +51,7 @@ public static class DependencyInjection
     private static string NormalizePostgresConnectionString(string connectionString)
     {
         connectionString = connectionString.Trim();
+        string normalized = connectionString;
         if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
             connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
@@ -102,13 +103,20 @@ public static class DependencyInjection
                     }
                 }
 
-                return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
+                normalized = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
             }
             catch
             {
-                return connectionString;
+                normalized = connectionString;
             }
         }
-        return connectionString;
+
+        // Tự động tương thích với Supabase PgBouncer Pooler (tránh lỗi Exception while reading from stream)
+        if (!normalized.Contains("No Reset On Close", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized.TrimEnd(';') + ";No Reset On Close=true;Multiplexing=false;";
+        }
+
+        return normalized;
     }
 }

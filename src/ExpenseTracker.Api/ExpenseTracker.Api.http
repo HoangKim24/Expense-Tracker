@@ -1,5 +1,5 @@
 @ExpenseTracker.Api_HostAddress = https://expense-tracker-573b.onrender.com
-# Hoặc chạy cục bộ: http://localhost:5080
+// Hoặc chạy cục bộ: http://localhost:5080
 
 GET {{ExpenseTracker.Api_HostAddress}}/api/transactions
 Accept: application/json

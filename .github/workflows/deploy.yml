@@ -1,65 +1,53 @@
-name: Deploy Expense Tracker API to VPS
+name: CI - Build & Test
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-test:
+  backend-ci:
+    name: Backend (.NET 8)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-          
+
       - name: Restore dependencies
-        run: dotnet restore src/ExpenseTracker.Api/ExpenseTracker.Api.csproj
+        run: dotnet restore ExpenseTracker.sln
 
-      - name: Build
-        run: dotnet build src/ExpenseTracker.Api/ExpenseTracker.Api.csproj --no-restore -c Release
+      - name: Build solution
+        run: dotnet build ExpenseTracker.sln -c Release --no-restore
 
-      # Giả sử có project Test, tạm thời comment lại nếu chưa tạo
-      # - name: Run Tests
-      #   run: dotnet test --no-build --verbosity normal
+      - name: Run unit tests
+        run: dotnet test ExpenseTracker.sln -c Release --no-build --verbosity normal
 
-  docker-build-and-push:
-    needs: build-and-test
+  frontend-ci:
+    name: Frontend (React / Vite)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: expense-tracker-web/package-lock.json
 
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/expense-tracker-api:latest
+      - name: Install dependencies
+        working-directory: ./expense-tracker-web
+        run: npm ci
 
-  deploy-to-vps:
-    needs: docker-build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy using SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /opt/expense-tracker
-            docker-compose pull expense-tracker-api
-            docker-compose up -d --no-deps expense-tracker-api
-            docker image prune -f
+      - name: Build frontend
+        working-directory: ./expense-tracker-web
+        run: npm run build

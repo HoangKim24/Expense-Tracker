@@ -2,7 +2,6 @@ using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.BackgroundJobs;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Persistence.Repositories;
-using ExpenseTracker.Infrastructure.Services.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,11 +12,6 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        if (!string.IsNullOrWhiteSpace(configuration["Encryption:SecretKey"]) && configuration["Encryption:SecretKey"]?.Length == 32)
-        {
-            services.AddSingleton<EncryptionHelper>();
-        }
-
         var connectionString = configuration["DATABASE_URL"] 
             ?? configuration.GetConnectionString("DATABASE_URL")
             ?? configuration.GetConnectionString("DefaultConnection");

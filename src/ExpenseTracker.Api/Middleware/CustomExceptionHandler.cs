@@ -46,7 +46,7 @@ public class CustomExceptionHandler : IExceptionHandler
             default:
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Title = "Internal Server Error";
-                problemDetails.Detail = "Đã xảy ra lỗi hệ thống cục bộ. Vui lòng thử lại sau.";
+                problemDetails.Detail = $"{exception.GetType().Name}: {exception.Message} {(exception.InnerException != null ? "--> " + exception.InnerException.Message : "")}";
                 break;
         }
 

@@ -317,7 +317,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         <input
           ref={nativeCameraInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/heic,image/*"
           capture="environment"
           className="hidden"
           onChange={handleFileChange}
@@ -326,7 +326,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/heic,image/*"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -353,7 +353,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
 
             {/* Locket Logo Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#facc15]" />
+              <Camera size={13} className="text-amber-400" />
               <span className="text-xs font-black tracking-wider uppercase">Locket Snap</span>
             </div>
 

@@ -272,7 +272,7 @@ export default function Dashboard() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-300 text-xs font-bold transition active:scale-95 shadow-sm"
               title="Chụp ảnh hóa đơn phong cách Locket"
             >
-              <Camera size={14} className="text-amber-400 animate-pulse" />
+              <Camera size={14} className="text-amber-400" />
               <span>Locket Snap</span>
             </button>
           </div>

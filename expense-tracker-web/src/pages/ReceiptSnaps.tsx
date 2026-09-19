@@ -896,14 +896,14 @@ export default function ReceiptSnaps() {
       <input
         type="file"
         ref={fileInputRef}
-        accept="image/*"
+        accept="image/jpeg,image/png,image/heic,image/*"
         className="hidden"
         onChange={handleFileChange}
       />
       <input
         type="file"
         ref={nativeCameraInputRef}
-        accept="image/*"
+        accept="image/jpeg,image/png,image/heic,image/*"
         capture="environment"
         className="hidden"
         onChange={handleFileChange}

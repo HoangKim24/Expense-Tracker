@@ -29,14 +29,23 @@ import {
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 
+const DEFAULT_CATEGORIES: CategoryDto[] = [
+  { id: "cat-food", name: "Ăn uống", color: "#f43f5e", icon: "restaurant", description: "Ăn uống", type: TransactionType.Expense },
+  { id: "cat-coffee", name: "Cà phê", color: "#d97706", icon: "coffee", description: "Cà phê, nước uống", type: TransactionType.Expense },
+  { id: "cat-shopping", name: "Mua sắm", color: "#3b82f6", icon: "shopping_bag", description: "Mua sắm", type: TransactionType.Expense },
+  { id: "cat-transport", name: "Di chuyển", color: "#10b981", icon: "directions_car", description: "Đi lại", type: TransactionType.Expense },
+  { id: "cat-living", name: "Sinh hoạt", color: "#8b5cf6", icon: "home", description: "Chi phí sinh hoạt", type: TransactionType.Expense },
+  { id: "cat-entertainment", name: "Giải trí", color: "#ec4899", icon: "movie", description: "Vui chơi giải trí", type: TransactionType.Expense },
+];
+
 export default function ReceiptSnaps() {
   // Tab view: 'camera' mở ngay khi vào trang, 'gallery' để xem kho ảnh
   const [viewMode, setViewMode] = useState<"camera" | "gallery">("camera");
 
   // Danh sách hóa đơn & danh mục
   const [receiptTransactions, setReceiptTransactions] = useState<TransactionDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [categories, setCategories] = useState<CategoryDto[]>(DEFAULT_CATEGORIES);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("cat-food");
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
@@ -326,7 +335,7 @@ export default function ReceiptSnaps() {
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-[calc(100vh-8.5rem)] flex flex-col justify-between select-none">
+    <div className="w-full max-w-[420px] mx-auto min-h-[calc(100dvh-8.5rem)] flex flex-col justify-between select-none px-2">
       {/* Hidden Canvas & Input File */}
       <canvas ref={canvasRef} className="hidden" />
       <input
@@ -353,9 +362,9 @@ export default function ReceiptSnaps() {
 
       {/* VIEW 1: CAMERA TOÀN DIỆN CHUẨN LOCKET (ẢNH BÊN PHẢI) */}
       {viewMode === "camera" && (
-        <div className="flex-1 flex flex-col justify-between py-2 px-3">
+        <div className="flex-1 w-full flex flex-col justify-between py-2">
           {/* Top Bar: [X] bên trái và [?] bên phải */}
-          <div className="flex items-center justify-between px-1 py-1">
+          <div className="w-full flex items-center justify-between px-2 py-1">
             <button
               type="button"
               onClick={() => {
@@ -365,15 +374,15 @@ export default function ReceiptSnaps() {
                   setViewMode("gallery");
                 }
               }}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
+              className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
               title={capturedImage ? "Chụp lại" : "Kho hóa đơn"}
             >
               <X size={26} strokeWidth={2.2} />
             </button>
 
             {/* Hint giữa màn hình */}
-            <div className="text-center">
-              <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+            <div className="text-center px-2">
+              <span className="text-xs font-black text-white/90 tracking-wider uppercase block">
                 {capturedImage ? "Chi Tiết Chi Phí" : "Chụp Hóa Đơn"}
               </span>
             </div>
@@ -381,7 +390,7 @@ export default function ReceiptSnaps() {
             <button
               type="button"
               onClick={() => setShowHelpModal(true)}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
+              className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
               title="Hướng dẫn & Mục tiêu"
             >
               <HelpCircle size={24} strokeWidth={2.2} />
@@ -389,9 +398,9 @@ export default function ReceiptSnaps() {
           </div>
 
           {/* KHUNG VIEWFINDER SQUIRCLE CHUẨN LOCKET */}
-          <div className="relative my-auto py-2">
+          <div className="relative my-auto py-2 w-full flex flex-col items-center">
             <div 
-              className="relative w-full aspect-square max-w-[350px] mx-auto rounded-[38px] overflow-hidden bg-neutral-950 shadow-2xl flex items-center justify-center select-none"
+              className="relative w-[88vw] max-w-[340px] aspect-square rounded-[38px] overflow-hidden bg-neutral-950 shadow-2xl flex items-center justify-center select-none shrink-0"
               style={{
                 WebkitMaskImage: "-webkit-radial-gradient(white, black)",
                 transform: "translateZ(0)",
@@ -510,10 +519,10 @@ export default function ReceiptSnaps() {
             </div>
 
             {/* NÚT PILL CHỌN DANH MỤC DƯỚI VIEWFINDER (TƯƠNG TỰ 'BẠN THÂN ⌵' TRONG ẢNH MẪU) */}
-            <div className="flex justify-center mt-3 relative">
+            <div className="flex justify-center mt-3 relative z-10">
               <button
                 type="button"
-                onClick={() => setIsCategoryPickerOpen((prev) => !prev)}
+                onClick={() => setIsCategoryPickerOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900/90 border border-white/20 text-white text-xs font-bold shadow-lg active:scale-95 transition"
               >
                 <span 
@@ -521,65 +530,21 @@ export default function ReceiptSnaps() {
                   style={{ backgroundColor: selectedCategory?.color || "#10b981" }} 
                 />
                 <span>{selectedCategory?.name || "Chọn danh mục"}</span>
-                <ChevronDown size={14} className={`text-white/70 transition-transform duration-200 ${isCategoryPickerOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={14} className="text-white/70" />
               </button>
-
-              {/* Dropdown danh mục popover */}
-              <AnimatePresence>
-                {isCategoryPickerOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-12 z-30 w-64 p-2 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl border border-white/20 shadow-2xl space-y-1"
-                  >
-                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
-                      Chọn danh mục chi tiêu
-                    </div>
-                    <div className="max-h-48 overflow-y-auto space-y-1 no-scrollbar">
-                      {categories.map((cat) => {
-                        const isSelected = selectedCategoryId === cat.id;
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCategoryId(cat.id);
-                              setIsCategoryPickerOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition ${
-                              isSelected ? "bg-white/20 text-white" : "text-slate-300 hover:bg-white/10"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: cat.color || "#38bdf8" }}
-                              />
-                              <span>{cat.name}</span>
-                            </div>
-                            {isSelected && <Check size={14} className="text-amber-400" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
 
           {/* PHẦN ĐÁY: BỘ ĐIỀU KHIỂN CHỤP & SWITCHER CHUẨN LOCKET */}
-          <div className="space-y-3 pt-1 pb-2">
+          <div className="w-full space-y-3 pt-1 pb-2">
             {!capturedImage ? (
               /* LIVE CONTROLS */
-              <div className="flex items-center justify-around px-4">
+              <div className="w-full flex items-center justify-around px-4">
                 {/* 1. Nút chọn ảnh thư viện */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg"
+                  className="w-12 h-12 shrink-0 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg"
                   title="Chọn ảnh từ máy"
                 >
                   <ImageIcon size={20} />
@@ -590,7 +555,7 @@ export default function ReceiptSnaps() {
                   type="button"
                   onClick={handleCapture}
                   disabled={hasCameraPermission === false}
-                  className="w-20 h-20 rounded-full border-[5px] border-white p-1 flex items-center justify-center active:scale-90 transition duration-150 shadow-[0_0_25px_rgba(255,255,255,0.35)] disabled:opacity-40"
+                  className="w-20 h-20 shrink-0 rounded-full border-[5px] border-white p-1 flex items-center justify-center active:scale-90 transition duration-150 shadow-[0_0_25px_rgba(255,255,255,0.35)] disabled:opacity-40"
                   title="Chụp ảnh"
                 >
                   <span className="w-full h-full rounded-full bg-white transition" />
@@ -601,7 +566,7 @@ export default function ReceiptSnaps() {
                   type="button"
                   onClick={handleToggleCamera}
                   disabled={hasCameraPermission === false}
-                  className="w-12 h-12 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg disabled:opacity-40"
+                  className="w-12 h-12 shrink-0 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg disabled:opacity-40"
                   title="Lật camera"
                 >
                   <RotateCcw size={20} />
@@ -819,6 +784,74 @@ export default function ReceiptSnaps() {
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Category Bottom Sheet Drawer */}
+      <AnimatePresence>
+        {isCategoryPickerOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm"
+          >
+            <div
+              onClick={() => setIsCategoryPickerOpen(false)}
+              className="absolute inset-0"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="relative z-10 w-full max-w-md mx-auto rounded-t-[32px] bg-slate-900 border-t border-slate-800 p-5 pb-8 space-y-4 shadow-2xl"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-slate-700 mx-auto" />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-white uppercase tracking-wider">
+                  Chọn Danh Mục Chi Tiêu
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryPickerOpen(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto no-scrollbar">
+                {categories.map((cat) => {
+                  const isSelected = selectedCategoryId === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryId(cat.id);
+                        setIsCategoryPickerOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-3 rounded-2xl border text-xs font-bold transition active:scale-95 ${
+                        isSelected
+                          ? "bg-white/15 border-white/40 text-white shadow-md"
+                          : "bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: cat.color || "#38bdf8" }}
+                        />
+                        <span className="truncate">{cat.name}</span>
+                      </div>
+                      {isSelected && <Check size={16} className="text-amber-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

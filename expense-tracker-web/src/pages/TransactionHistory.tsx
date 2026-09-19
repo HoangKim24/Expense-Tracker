@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, ArrowDownRight, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, Download } from "lucide-react";
+import { Search, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, Download, RefreshCw, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -7,13 +7,14 @@ import {
   getTransactions, 
   deleteTransaction, 
   getReceiptImageUrl, 
+  syncGmailTransactions,
   TransactionType, 
   TransactionSource, 
   type TransactionDto 
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 
-type FilterMode = "all" | "expense" | "income" | "receipt";
+type FilterMode = "all" | "receipt" | "momo" | "cake" | "manual";
 
 export default function TransactionHistory() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,7 +28,8 @@ export default function TransactionHistory() {
     setIsLoading(true);
     getTransactions()
       .then((data) => {
-        setTransactions(data);
+        // Chỉ lấy các giao dịch chi tiêu
+        setTransactions(data.filter((t) => t.type === TransactionType.Expense));
       })
       .catch(() => {
         toast.error("Không thể tải lịch sử giao dịch. Vui lòng thử lại!");
@@ -56,6 +58,40 @@ export default function TransactionHistory() {
 
   const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncMoMoCake = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    const toastId = toast.loading("Đang quét biến động số dư MoMo & Cake qua Gmail...");
+
+    try {
+      const result = await syncGmailTransactions();
+      if (result.success) {
+        localStorage.setItem("last_momo_cake_sync", new Date().toISOString());
+        if (result.syncedCount > 0) {
+          toast.success(`Đã thêm ${result.syncedCount} giao dịch từ MoMo & Cake!`, {
+            id: toastId,
+            description: result.message,
+          });
+          fetchTransactions();
+          window.dispatchEvent(new CustomEvent("transaction-updated"));
+        } else {
+          toast.info(result.message || "Hộp thư đã cập nhật mới nhất.", { id: toastId });
+        }
+      } else {
+        toast.error(result.message || "Lỗi đồng bộ Gmail", {
+          id: toastId,
+          description: result.errors?.[0] || "Vui lòng kiểm tra cấu hình Gmail trong hệ thống.",
+        });
+      }
+    } catch {
+      toast.error("Lỗi khi kết nối API đồng bộ!", { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredData = useMemo(() => {
     return transactions.filter((t) => {
       const desc = (t.description || t.merchant || "").toLowerCase();
@@ -64,37 +100,36 @@ export default function TransactionHistory() {
 
       if (!matchesSearch) return false;
 
-      if (filterMode === "expense") return t.type === TransactionType.Expense;
-      if (filterMode === "income") return t.type === TransactionType.Income;
-      if (filterMode === "receipt") return !!t.receiptImagePath;
+      if (filterMode === "receipt") return !!t.receiptImagePath || t.source === TransactionSource.SnapReceipt;
+      if (filterMode === "momo") return t.source === TransactionSource.MoMo;
+      if (filterMode === "cake") return t.source === TransactionSource.Cake;
+      if (filterMode === "manual") return t.source === TransactionSource.Manual;
       return true;
     });
   }, [transactions, searchTerm, filterMode]);
 
   const visibleData = filteredData.slice(0, page * 15);
-  const totalIncome = filteredData
-    .filter((t) => t.type === TransactionType.Income)
-    .reduce((sum, item) => sum + item.amount, 0);
-  const totalExpense = filteredData
-    .filter((t) => t.type === TransactionType.Expense)
-    .reduce((sum, item) => sum + item.amount, 0);
+  const totalExpense = filteredData.reduce((sum, item) => sum + item.amount, 0);
 
-  const filters: Array<{ value: FilterMode; label: string; icon?: typeof Camera }> = [
-    { value: "all", label: "Tất cả" },
-    { value: "expense", label: "Chi tiêu" },
-    { value: "income", label: "Thu nhập" },
+  const filters: Array<{ value: FilterMode; label: string; icon?: typeof Camera | typeof RefreshCw | typeof Smartphone }> = [
+    { value: "all", label: "Tất cả chi tiêu" },
+    { value: "momo", label: "Ví MoMo", icon: Smartphone },
+    { value: "cake", label: "Cake VPBank" },
     { value: "receipt", label: "Có ảnh bill", icon: Camera },
+    { value: "manual", label: "Nhập tay" },
   ];
 
   const handleExportCsv = () => {
     if (filteredData.length === 0) return;
-    const headers = "ID,Mô tả,Danh mục,Số tiền,Loại,Nguồn,Ngày\n";
+    const headers = "ID,Mô tả,Danh mục,Số tiền,Nguồn,Ngày\n";
     const csvContent = filteredData
       .map((t) => {
-        const typeStr = t.type === TransactionType.Income ? "Thu" : "Chi";
-        const sourceStr = t.source === TransactionSource.SnapReceipt ? "Snap & Log" : "Nhập tay";
+        let sourceStr = "Nhập tay";
+        if (t.source === TransactionSource.SnapReceipt) sourceStr = "Snap Bill";
+        if (t.source === TransactionSource.MoMo) sourceStr = "MoMo";
+        if (t.source === TransactionSource.Cake) sourceStr = "Cake Bank";
         const dateStr = new Date(t.transactionDate).toLocaleDateString("vi-VN");
-        return `"${t.id}","${t.description || t.merchant || ""}","${t.categoryName || ""}","${t.amount}","${typeStr}","${sourceStr}","${dateStr}"`;
+        return `"${t.id}","${t.description || t.merchant || ""}","${t.categoryName || ""}","-${t.amount}","${sourceStr}","${dateStr}"`;
       })
       .join("\n");
 
@@ -102,7 +137,7 @@ export default function TransactionHistory() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `lich_su_giao_dich_${Date.now()}.csv`);
+    link.setAttribute("download", `lich_su_chi_tieu_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -118,37 +153,39 @@ export default function TransactionHistory() {
             {isLoading ? "Đang tải dữ liệu..." : `${filteredData.length} giao dịch`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={filteredData.length === 0}
-          className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 transition disabled:opacity-40"
-        >
-          <Download size={14} /> Xuất CSV
-        </button>
+        <div className="flex items-center gap-2">
+          {/* MoMo & Cake Sync Button */}
+          <button
+            type="button"
+            onClick={handleSyncMoMoCake}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 rounded-xl border border-pink-500/30 bg-pink-500/15 px-3 py-2 text-xs font-bold text-pink-300 hover:bg-pink-500/25 transition disabled:opacity-50"
+            title="Đồng bộ biến động số dư từ MoMo & Cake"
+          >
+            <RefreshCw size={13} className={cn("text-pink-400", isSyncing && "animate-spin")} />
+            <span>{isSyncing ? "Đang quét..." : "Đồng bộ MoMo/Cake"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredData.length === 0}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 transition disabled:opacity-40"
+          >
+            <Download size={14} /> Xuất CSV
+          </button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng thu lọc</span>
-            <span className="text-lg font-black text-emerald-400 tracking-tight mt-0.5 block">{formatCurrency(totalIncome)}</span>
-          </div>
-          <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-            <ArrowDownRight size={18} />
-          </span>
+      {/* Summary Card */}
+      <section className="rounded-2xl border border-rose-900/40 bg-gradient-to-br from-rose-950/40 to-slate-900 p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng Chi Tiêu Đã Lọc</span>
+          <span className="text-2xl font-black text-rose-400 tracking-tight mt-0.5 block">{formatCurrency(totalExpense)}</span>
         </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng chi lọc</span>
-            <span className="text-lg font-black text-rose-400 tracking-tight mt-0.5 block">{formatCurrency(totalExpense)}</span>
-          </div>
-          <span className="p-2 rounded-xl bg-rose-500/10 text-rose-400">
-            <ArrowUpRight size={18} />
-          </span>
-        </div>
+        <span className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400">
+          <ArrowUpRight size={22} />
+        </span>
       </section>
 
       {/* Search & Filter Chips */}
@@ -201,7 +238,6 @@ export default function TransactionHistory() {
       <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm overflow-hidden">
         <div className="divide-y divide-slate-800/80">
           {visibleData.map((t) => {
-            const isIncome = t.type === TransactionType.Income;
             const hasReceipt = !!t.receiptImagePath;
             const receiptUrl = getReceiptImageUrl(t.receiptImagePath);
 
@@ -224,26 +260,47 @@ export default function TransactionHistory() {
                         SNAP
                       </div>
                     </div>
+                  ) : t.source === TransactionSource.MoMo ? (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30 font-black text-xs">
+                      MoMo
+                    </div>
+                  ) : t.source === TransactionSource.Cake ? (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 font-black text-xs">
+                      Cake
+                    </div>
                   ) : (
-                    <div
-                      className={cn(
-                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-                        isIncome ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                      )}
-                    >
-                      {isIncome ? <ArrowDownRight size={18} /> : <Receipt size={18} />}
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
+                      <Receipt size={18} />
                     </div>
                   )}
 
                   {/* Middle Details */}
                   <div className="min-w-0">
                     <p className="truncate text-xs font-bold text-white">
-                      {t.description || t.merchant || "Giao dịch"}
+                      {t.description || t.merchant || "Khoản chi tiêu"}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
                       <span className="flex items-center gap-1">
                         <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
                       </span>
+
+                      {/* Source Badge */}
+                      {t.source === TransactionSource.MoMo && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                          Ví MoMo
+                        </span>
+                      )}
+                      {t.source === TransactionSource.Cake && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          Cake VPBank
+                        </span>
+                      )}
+                      {t.source === TransactionSource.SnapReceipt && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Hóa đơn
+                        </span>
+                      )}
+
                       {t.categoryName && (
                         <span
                           className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-bold text-white"
@@ -258,13 +315,8 @@ export default function TransactionHistory() {
 
                 {/* Right: Amount & Delete Button */}
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <span
-                    className={cn(
-                      "text-xs sm:text-sm font-black tracking-tight",
-                      isIncome ? "text-emerald-400" : "text-slate-200"
-                    )}
-                  >
-                    {isIncome ? "+" : "-"}{formatCurrency(t.amount)}
+                  <span className="text-xs sm:text-sm font-black tracking-tight text-rose-400">
+                    -{formatCurrency(t.amount)}
                   </span>
                   <button
                     type="button"

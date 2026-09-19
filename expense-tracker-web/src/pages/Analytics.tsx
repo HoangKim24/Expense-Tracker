@@ -54,11 +54,7 @@ export default function Analytics() {
   // 2. Tính toán tổng chi và phân bổ danh mục theo dữ liệu thực
   const stats = useMemo(() => {
     const expenseTx = filteredTransactions.filter((t) => t.type === TransactionType.Expense);
-    const incomeTx = filteredTransactions.filter((t) => t.type === TransactionType.Income);
-
     const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
-    const totalIncome = incomeTx.reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalIncome - totalExpense;
 
     // Nhóm theo tên danh mục thực tế từ Database
     const categoryMap: Record<string, { amount: number; color?: string }> = {};
@@ -79,7 +75,7 @@ export default function Analytics() {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    return { totalExpense, totalIncome, balance, categoryBreakdown };
+    return { totalExpense, categoryBreakdown };
   }, [filteredTransactions]);
 
   // 3. Tính toán Insight thông minh thực tế (Không gán cứng)

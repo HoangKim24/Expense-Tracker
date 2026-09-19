@@ -6,17 +6,20 @@ import {
   Tag, 
   ChevronRight, 
   Camera,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { cn } from "../lib/utils";
 import {
   getDashboardMetrics,
   getTransactions,
   getCategories,
   createTransaction,
   deleteTransaction,
+  syncGmailTransactions,
   TransactionType,
   TransactionSource,
   type DashboardMetricsDto,
@@ -36,12 +39,12 @@ export default function Dashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
 
   // Inline Quick Add Form State
-  const [entryType, setEntryType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Load Data
   const loadData = useCallback(() => {
@@ -66,8 +69,83 @@ export default function Dashboard() {
       .finally(() => setIsLoading(false));
   }, [selectedCategoryId]);
 
+  // Handle Manual MoMo & Cake Gmail Sync
+  const handleSyncMoMoCake = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    const toastId = toast.loading("Đang kết nối Gmail quét biến động MoMo & Cake (< 15s)...");
+
+    try {
+      const result = await syncGmailTransactions();
+      if (result.success) {
+        localStorage.setItem("last_momo_cake_sync", new Date().toISOString());
+        if (result.syncedCount > 0) {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ["#d82d8b", "#ff006e", "#3b82f6"],
+          });
+          toast.success(`Đã đồng bộ ${result.syncedCount} giao dịch mới từ MoMo/Cake!`, {
+            id: toastId,
+            description: result.message,
+          });
+          loadData();
+          window.dispatchEvent(new CustomEvent("transaction-updated"));
+        } else {
+          toast.info(result.message || "Hộp thư đã cập nhật mới nhất. Không có giao dịch mới.", {
+            id: toastId,
+          });
+        }
+      } else {
+        toast.error(result.message || "Không thể đồng bộ Gmail", {
+          id: toastId,
+          description: result.errors?.[0] || "Vui lòng kiểm tra cấu hình Gmail trong hệ thống.",
+        });
+      }
+    } catch {
+      toast.error("Lỗi khi kết nối API đồng bộ Gmail!", { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Auto-Sync check every new day (after 24h)
   useEffect(() => {
     loadData();
+
+    const checkAutoSync = async () => {
+      const lastSyncStr = localStorage.getItem("last_momo_cake_sync");
+      const now = new Date();
+      let shouldAutoSync = false;
+
+      if (!lastSyncStr) {
+        shouldAutoSync = true;
+      } else {
+        const lastDate = new Date(lastSyncStr);
+        const diffHours = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
+        const isDifferentDay = lastDate.getDate() !== now.getDate() || lastDate.getMonth() !== now.getMonth();
+        if (diffHours >= 24 || isDifferentDay) {
+          shouldAutoSync = true;
+        }
+      }
+
+      if (shouldAutoSync) {
+        try {
+          const res = await syncGmailTransactions();
+          if (res.success && res.syncedCount > 0) {
+            toast.success(`Tự động đồng bộ ngày mới: Thêm ${res.syncedCount} giao dịch từ MoMo/Cake!`);
+            loadData();
+            window.dispatchEvent(new CustomEvent("transaction-updated"));
+          }
+          localStorage.setItem("last_momo_cake_sync", now.toISOString());
+        } catch {
+          // Bỏ qua lỗi ngầm khi auto sync
+        }
+      }
+    };
+
+    checkAutoSync();
 
     const handleUpdate = () => loadData();
     window.addEventListener("transaction-updated", handleUpdate);
@@ -95,13 +173,13 @@ export default function Dashboard() {
     setIsSubmitting(true);
     try {
       const selectedCat = categories.find((c) => c.id === selectedCategoryId);
-      const defaultDesc = selectedCat ? selectedCat.name : (entryType === "income" ? "Khoản thu nhập" : "Khoản chi tiêu");
+      const defaultDesc = selectedCat ? selectedCat.name : "Khoản chi tiêu";
 
       await createTransaction({
         amount: numericAmount,
         transactionDate: new Date().toISOString(),
         description: note.trim() || defaultDesc,
-        type: entryType === "income" ? TransactionType.Income : TransactionType.Expense,
+        type: TransactionType.Expense,
         source: TransactionSource.Manual,
         categoryId: selectedCategoryId || null,
       });
@@ -170,11 +248,23 @@ export default function Dashboard() {
       <section className="rounded-3xl bg-slate-900 border border-slate-800 p-4 sm:p-5 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <PlusCircle size={18} className="text-blue-500" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">Ghi Sổ Nhanh</h2>
+            <PlusCircle size={18} className="text-rose-500" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* MoMo & Cake Gmail Sync Button */}
+            <button
+              type="button"
+              onClick={handleSyncMoMoCake}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-300 text-xs font-bold transition active:scale-95 shadow-sm disabled:opacity-50"
+              title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
+            >
+              <RefreshCw size={13} className={cn("text-pink-400", isSyncing && "animate-spin")} />
+              <span>{isSyncing ? "Đang quét..." : "MoMo & Cake"}</span>
+            </button>
+
             {/* Locket Snap Quick Camera Button */}
             <button
               type="button"
@@ -185,32 +275,6 @@ export default function Dashboard() {
               <Camera size={14} className="text-amber-400 animate-pulse" />
               <span>Locket Snap</span>
             </button>
-
-            {/* Toggle Chi / Thu */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setEntryType("expense")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  entryType === "expense"
-                    ? "bg-rose-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Chi tiêu
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntryType("income")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  entryType === "income"
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Thu nhập
-              </button>
-            </div>
           </div>
         </div>
 
@@ -226,11 +290,9 @@ export default function Dashboard() {
                 const val = e.target.value.replace(/\D/g, "");
                 setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
               }}
-              className="w-full rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3.5 text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-right pr-14"
+              className="w-full rounded-2xl bg-slate-950 border border-slate-800 px-4 py-3.5 text-2xl font-black text-white placeholder-slate-600 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-right pr-14"
             />
-            <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black ${
-              entryType === "income" ? "text-emerald-400" : "text-rose-400"
-            }`}>
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-rose-400">
               VNĐ
             </span>
           </div>
@@ -256,7 +318,7 @@ export default function Dashboard() {
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
               {categories
-                .filter((cat) => cat.type === (entryType === "income" ? TransactionType.Income : TransactionType.Expense))
+                .filter((cat) => cat.type === TransactionType.Expense)
                 .map((cat) => {
                   const isSelected = selectedCategoryId === cat.id;
                   return (

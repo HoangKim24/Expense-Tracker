@@ -10,6 +10,35 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Tự động nạp biến môi trường từ file .env nếu có
+var envCandidatePaths = new[]
+{
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ".env"),
+    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".env")
+};
+
+foreach (var envPath in envCandidatePaths)
+{
+    if (File.Exists(envPath))
+    {
+        foreach (var line in File.ReadAllLines(envPath))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#')) continue;
+            var parts = trimmed.Split('=', 2);
+            if (parts.Length == 2)
+            {
+                var key = parts[0].Trim().Replace("__", ":");
+                var val = parts[1].Trim();
+                builder.Configuration[key] = val;
+                Environment.SetEnvironmentVariable(parts[0].Trim(), val);
+            }
+        }
+        break;
+    }
+}
+
 // Serilog (đọc cấu hình từ appsettings.json)
 builder.Host.UseSerilog((context, loggerConfiguration) =>
     loggerConfiguration.ReadFrom.Configuration(context.Configuration));

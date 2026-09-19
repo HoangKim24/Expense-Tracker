@@ -20,9 +20,21 @@ export const TransactionSource = {
   Manual: 1,
   Telegram: 2,
   SnapReceipt: 3,
+  MoMo: 4,
+  Cake: 5,
 } as const;
 
 export type TransactionSourceValue = typeof TransactionSource[keyof typeof TransactionSource];
+
+export type SyncResultDto = {
+  success: boolean;
+  syncedCount: number;
+  skippedCount: number;
+  syncedAt: string;
+  message: string;
+  newTransactions: TransactionDto[];
+  errors: string[];
+};
 
 export type TransactionDto = {
   id: string;
@@ -118,3 +130,14 @@ export async function uploadReceipt(file: File) {
   });
   return response.data;
 }
+
+export async function syncGmailTransactions() {
+  const response = await api.post<SyncResultDto>("/api/sync/gmail");
+  return response.data;
+}
+
+export async function getLastSyncTime() {
+  const response = await api.get<{ lastSyncTime?: string | null }>("/api/sync/gmail/last-sync");
+  return response.data;
+}
+

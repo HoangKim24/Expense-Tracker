@@ -35,6 +35,7 @@ public static class DependencyInjection
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<ExpenseTracker.Application.Interfaces.IGmailSyncService, ExpenseTracker.Infrastructure.Services.Gmail.GmailSyncService>();
 
         // Background Workers
         services.AddHostedService<TelegramBotBackgroundService>(); // Kích hoạt Bot

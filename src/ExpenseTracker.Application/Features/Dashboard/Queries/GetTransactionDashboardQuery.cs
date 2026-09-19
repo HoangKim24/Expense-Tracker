@@ -31,9 +31,7 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
             t => t.TransactionDate >= startDate && t.TransactionDate < endDate,
             cancellationToken);
 
-        var totalIncome = transactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
         var totalExpense = transactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
-        var balance = totalIncome - totalExpense;
 
         var expenseCategories = transactions
             .Where(t => t.Type == TransactionType.Expense)
@@ -49,9 +47,9 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
 
         return new DashboardMetricsDto
         {
-            TotalIncome = totalIncome,
+            TotalIncome = 0,
             TotalExpense = totalExpense,
-            Balance = balance,
+            Balance = -totalExpense,
             CategoryBreakdown = expenseCategories
         };
     }

@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   server: {
+    host: true,
+    port: 5173,
     proxy: {
       '/api': 'http://localhost:5080',
       '/health': 'http://localhost:5080',

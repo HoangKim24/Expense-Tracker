@@ -69,6 +69,7 @@ export default function ReceiptSnaps() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Tải danh sách hóa đơn đã lưu
   const loadSnaps = useCallback(() => {
@@ -96,17 +97,21 @@ export default function ReceiptSnaps() {
     return () => window.removeEventListener("transaction-updated", handleUpdate);
   }, [loadSnaps]);
 
-  // Dừng stream camera khi chuyển tab hoặc unmount
+  // Dừng stream camera - Ổn định vĩnh viễn, không re-create
   const stopStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-  }, [stream]);
+    setStream(null);
+  }, []);
 
-  // Bật camera - Chuẩn hóa đặc biệt cho iOS Safari (iPhone 15)
+  // Bật camera - Ổn định vĩnh viễn, không gây re-render loop
   const startCamera = useCallback(async (mode: "environment" | "user") => {
-    stopStream();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
     setHasCameraPermission(null);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -114,45 +119,35 @@ export default function ReceiptSnaps() {
       return;
     }
 
-    let newStream: MediaStream | null = null;
     try {
-      // Thử với facingMode lý tưởng (không ép tỷ lệ vuông cứng để tránh Safari iOS AVFoundation lỗi stream đen)
-      newStream = await navigator.mediaDevices.getUserMedia({
+      const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          facingMode: mode === "user" ? "user" : { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
-    } catch {
-      try {
-        // Fallback 1: facingMode trực tiếp
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: mode },
-          audio: false,
-        });
-      } catch {
-        try {
-          // Fallback 2: bất kỳ camera video nào
-          newStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
-        } catch {
-          setHasCameraPermission(false);
-          return;
-        }
-      }
-    }
 
-    if (newStream) {
+      streamRef.current = newStream;
       setStream(newStream);
       setHasCameraPermission(true);
+    } catch {
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        streamRef.current = fallbackStream;
+        setStream(fallbackStream);
+        setHasCameraPermission(true);
+      } catch {
+        setHasCameraPermission(false);
+      }
     }
-  }, [stopStream]);
+  }, []);
 
-  // Mở camera khi vào tab camera
+  // Mở camera khi vào tab camera - Chỉ chạy 1 lần khi chuyển tab hoặc đổi camera
   useEffect(() => {
     if (viewMode === "camera" && !capturedImage) {
       startCamera(facingMode);
@@ -529,8 +524,8 @@ export default function ReceiptSnaps() {
               )}
             </div>
 
-            {/* NÚT PILL CHỌN DANH MỤC DƯỚI VIEWFINDER (TƯƠNG TỰ 'BẠN THÂN ⌵' TRONG ẢNH MẪU) */}
-            <div className="flex justify-center mt-3 relative z-10">
+            {/* NÚT PILL CHỌN DANH MỤC DƯỚI VIEWFINDER */}
+            <div className="flex flex-col items-center gap-2 mt-3 relative z-10">
               <button
                 type="button"
                 onClick={() => setIsCategoryPickerOpen(true)}
@@ -543,6 +538,19 @@ export default function ReceiptSnaps() {
                 <span>{selectedCategory?.name || "Chọn danh mục"}</span>
                 <ChevronDown size={14} className="text-white/70" />
               </button>
+
+              {/* Nút Chụp bằng Camera Gốc iPhone (Cách 2) - Nổi bật, bấm là mở thẳng máy ảnh */}
+              {!capturedImage && (
+                <button
+                  type="button"
+                  onClick={() => nativeCameraInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold shadow-md active:scale-95 transition"
+                  title="Mở ứng dụng máy ảnh gốc iPhone"
+                >
+                  <Camera size={14} />
+                  <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -567,12 +575,22 @@ export default function ReceiptSnaps() {
                   onClick={handleCapture}
                   disabled={hasCameraPermission === false}
                   className="w-20 h-20 shrink-0 rounded-full border-[5px] border-white p-1 flex items-center justify-center active:scale-90 transition duration-150 shadow-[0_0_25px_rgba(255,255,255,0.35)] disabled:opacity-40"
-                  title="Chụp ảnh"
+                  title="Chụp ảnh trực tiếp"
                 >
                   <span className="w-full h-full rounded-full bg-white transition" />
                 </button>
 
-                {/* 3. Nút lật camera trước / sau */}
+                {/* 3. Nút mở máy ảnh iPhone (Cách 2) */}
+                <button
+                  type="button"
+                  onClick={() => nativeCameraInputRef.current?.click()}
+                  className="w-12 h-12 shrink-0 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 flex items-center justify-center active:scale-90 transition shadow-lg"
+                  title="Mở máy ảnh iPhone (Cách 2)"
+                >
+                  <Camera size={20} />
+                </button>
+
+                {/* 4. Nút lật camera trước / sau */}
                 <button
                   type="button"
                   onClick={handleToggleCamera}

@@ -30,6 +30,7 @@ interface Props {
 
 export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props) {
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
@@ -46,19 +47,24 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  // Dừng stream camera
+  // Dừng stream camera - Ổn định vĩnh viễn, không gây re-render loop
   const stopStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-  }, [stream]);
+    setStream(null);
+  }, []);
 
-  // Khởi động stream camera - Chuẩn hóa cho iOS Safari
+  // Khởi động stream camera - Chuẩn hóa cho iOS Safari, không re-create
   const startCamera = useCallback(async (mode: "environment" | "user") => {
-    stopStream();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
     setHasCameraPermission(null);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -66,40 +72,33 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       return;
     }
 
-    let newStream: MediaStream | null = null;
     try {
-      newStream = await navigator.mediaDevices.getUserMedia({
+      const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          facingMode: mode === "user" ? "user" : { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
-    } catch {
-      try {
-        newStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: mode },
-          audio: false,
-        });
-      } catch {
-        try {
-          newStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
-        } catch {
-          setHasCameraPermission(false);
-          return;
-        }
-      }
-    }
 
-    if (newStream) {
+      streamRef.current = newStream;
       setStream(newStream);
       setHasCameraPermission(true);
+    } catch {
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        streamRef.current = fallbackStream;
+        setStream(fallbackStream);
+        setHasCameraPermission(true);
+      } catch {
+        setHasCameraPermission(false);
+      }
     }
-  }, [stopStream]);
+  }, []);
 
   // Gắn stream vào thẻ video một lần duy nhất và lắng nghe sự kiện phát hình
   useEffect(() => {
@@ -151,14 +150,10 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       setDescription("");
       setIsSubmitting(false);
     }
+    return () => {
+      stopStream();
+    };
   }, [isOpen, facingMode, capturedImage, startCamera, stopStream]);
-
-  // Gắn stream vào thẻ video
-  useEffect(() => {
-    if (videoRef.current && stream && !capturedImage) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream, capturedImage]);
 
   // Tự động focus vào ô nhập tiền sau khi chụp
   useEffect(() => {
@@ -316,13 +311,22 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
           )}
         </AnimatePresence>
 
-        {/* Hidden Canvas & File Input */}
+        {/* Hidden Canvas & File Inputs */}
         <canvas ref={canvasRef} className="hidden" />
+        {/* Input mở thẳng Camera máy ảnh iPhone (Cách 2) */}
+        <input
+          ref={nativeCameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        {/* Input chọn ảnh từ thư viện */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -379,10 +383,10 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                     <div className="flex flex-col gap-2 w-full max-w-[220px] mx-auto">
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => nativeCameraInputRef.current?.click()}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-400 font-bold text-xs text-black shadow-lg active:scale-95 transition"
                       >
-                        <Camera size={16} /> Mở Máy Ảnh Chụp Ngay
+                        <Camera size={16} /> Mở Máy Ảnh iPhone (Cách 2)
                       </button>
                       <button
                         type="button"
@@ -479,18 +483,33 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
             )}
           </div>
 
+          {/* NÚT MỞ MÁY ẢNH IPHONE (CÁCH 2) - LUÔN HIỂN THỊ RÕ RÀNG */}
+          {!capturedImage && (
+            <div className="flex justify-center my-1 z-10">
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-300 text-xs font-bold active:scale-95 transition shadow-sm"
+                title="Mở ứng dụng máy ảnh gốc iPhone"
+              >
+                <Camera size={14} />
+                <span>📸 Mở Máy Ảnh iPhone (Cách 2)</span>
+              </button>
+            </div>
+          )}
+
           {/* BOTTOM CONTROLS BAR */}
           {!capturedImage ? (
             /* CAMERA CONTROL BUTTONS */
-            <div className="w-full pt-3 pb-2 flex items-center justify-around px-4">
+            <div className="w-full pt-1 pb-2 flex items-center justify-around px-3">
               {/* Pick from Library (Rounded Square) */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-13 h-13 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
+                className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
                 title="Chọn ảnh từ thư viện"
               >
-                <ImageIcon size={22} />
+                <ImageIcon size={20} />
               </button>
 
               {/* The Iconic Double-Ring Locket Shutter Button */}
@@ -498,10 +517,20 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 type="button"
                 onClick={handleCapture}
                 disabled={hasCameraPermission === false}
-                className="relative flex items-center justify-center w-21 h-21 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
-                title="Chụp ảnh"
+                className="relative flex items-center justify-center w-20 h-20 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
+                title="Chụp ảnh trực tiếp"
               >
                 <span className="w-full h-full rounded-full bg-white shadow-inner flex items-center justify-center" />
+              </button>
+
+              {/* Quick Native Camera Button (Cách 2) */}
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="w-12 h-12 rounded-2xl bg-amber-400/20 hover:bg-amber-400/30 active:scale-90 border border-amber-400/50 flex items-center justify-center text-amber-300 backdrop-blur-md transition shadow-lg"
+                title="Mở máy ảnh iPhone (Cách 2)"
+              >
+                <Camera size={20} />
               </button>
 
               {/* Camera Flip Button */}
@@ -509,10 +538,10 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 type="button"
                 onClick={handleToggleCamera}
                 disabled={hasCameraPermission === false}
-                className="w-13 h-13 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
+                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
                 title="Đổi camera trước/sau"
               >
-                <RefreshCw size={22} />
+                <RefreshCw size={20} />
               </button>
             </div>
           ) : (

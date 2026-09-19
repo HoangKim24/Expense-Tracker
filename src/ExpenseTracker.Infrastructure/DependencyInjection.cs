@@ -18,8 +18,9 @@ public static class DependencyInjection
             services.AddSingleton<EncryptionHelper>();
         }
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? configuration["DATABASE_URL"];
+        var connectionString = configuration["DATABASE_URL"] 
+            ?? configuration.GetConnectionString("DATABASE_URL")
+            ?? configuration.GetConnectionString("DefaultConnection");
 
         services.AddDbContext<ExpenseDbContext>(options =>
         {

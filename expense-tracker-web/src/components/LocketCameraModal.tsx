@@ -8,7 +8,8 @@ import {
   Sparkles, 
   Zap, 
   RotateCcw,
-  Tag
+  Tag,
+  Camera
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -98,14 +99,30 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       setStream(newStream);
       setHasCameraPermission(true);
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(() => {});
+        const video = videoRef.current;
+        video.muted = true;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+        video.srcObject = newStream;
+        video.onloadedmetadata = () => {
+          video.play().catch(() => {});
         };
-        videoRef.current.play().catch(() => {});
+        video.play().catch(() => {});
       }
     }
   }, [stopStream]);
+
+  // Gắn stream vào thẻ video khi stream thay đổi
+  useEffect(() => {
+    if (videoRef.current && stream && !capturedImage) {
+      const video = videoRef.current;
+      video.muted = true;
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+      video.srcObject = stream;
+      video.play().catch(() => {});
+    }
+  }, [stream, capturedImage]);
 
   // Quản lý đóng/mở modal
   useEffect(() => {
@@ -359,15 +376,24 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
-                      <p className="text-xs text-slate-400">Bạn có thể chọn ảnh hóa đơn sẵn có trong máy.</p>
+                      <p className="text-xs text-slate-400">Bạn có thể mở camera máy ảnh hoặc chọn ảnh.</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 font-bold text-xs text-white shadow-lg active:scale-95 transition"
-                    >
-                      <ImageIcon size={16} /> Chọn ảnh từ thư viện
-                    </button>
+                    <div className="flex flex-col gap-2 w-full max-w-[220px] mx-auto">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-400 font-bold text-xs text-black shadow-lg active:scale-95 transition"
+                      >
+                        <Camera size={16} /> Mở Máy Ảnh Chụp Ngay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
+                      >
+                        <ImageIcon size={16} /> Chọn ảnh từ thư viện
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <video

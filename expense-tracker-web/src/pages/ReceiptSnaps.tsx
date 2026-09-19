@@ -67,6 +67,7 @@ export default function ReceiptSnaps() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Tải danh sách hóa đơn đã lưu
@@ -149,12 +150,15 @@ export default function ReceiptSnaps() {
       setStream(newStream);
       setHasCameraPermission(true);
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        // Bắt buộc gọi play() trên iOS Safari
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(() => {});
+        const video = videoRef.current;
+        video.muted = true;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+        video.srcObject = newStream;
+        video.onloadedmetadata = () => {
+          video.play().catch(() => {});
         };
-        videoRef.current.play().catch(() => {});
+        video.play().catch(() => {});
       }
     }
   }, [stopStream]);
@@ -174,8 +178,12 @@ export default function ReceiptSnaps() {
   // Gắn stream vào thẻ video và kích hoạt play
   useEffect(() => {
     if (videoRef.current && stream && !capturedImage) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(() => {});
+      const video = videoRef.current;
+      video.muted = true;
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+      video.srcObject = stream;
+      video.play().catch(() => {});
     }
   }, [stream, capturedImage]);
 
@@ -419,16 +427,25 @@ export default function ReceiptSnaps() {
                       <div className="space-y-1">
                         <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
                         <p className="text-xs text-slate-400 leading-relaxed">
-                          Vui lòng cho phép quyền truy cập camera hoặc chọn ảnh từ máy.
+                          Vui lòng cho phép quyền truy cập camera hoặc chụp trực tiếp qua ứng dụng máy ảnh.
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 font-bold text-xs text-white shadow-lg active:scale-95 transition"
-                      >
-                        <ImageIcon size={16} /> Chọn ảnh từ thư viện
-                      </button>
+                      <div className="flex flex-col gap-2 w-full max-w-[220px] mx-auto">
+                        <button
+                          type="button"
+                          onClick={() => nativeCameraInputRef.current?.click()}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-400 font-bold text-xs text-black shadow-lg active:scale-95 transition"
+                        >
+                          <Camera size={16} /> Mở Máy Ảnh Chụp Ngay
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
+                        >
+                          <ImageIcon size={16} /> Chọn ảnh từ thư viện
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <video
@@ -861,6 +878,23 @@ export default function ReceiptSnaps() {
         isOpen={!!selectedTransaction}
         onClose={() => setSelectedTransaction(null)}
         onDelete={handleDelete}
+      />
+
+      {/* Hidden File Inputs for Gallery & Native Camera fallback */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        type="file"
+        ref={nativeCameraInputRef}
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
       />
     </div>
   );

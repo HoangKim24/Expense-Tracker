@@ -23,12 +23,12 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
 
     public async Task<DashboardMetricsDto> Handle(GetTransactionDashboardQuery request, CancellationToken cancellationToken)
     {
-        var startDate = new DateTime(request.Year, request.Month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var startDate = DateTime.SpecifyKind(new DateTime(request.Year, request.Month, 1, 0, 0, 0), DateTimeKind.Utc);
+        var endDate = startDate.AddMonths(1);
 
         // Sử dụng AsNoTracking để tối ưu hiệu năng đọc (đã được bọc ngầm trong GetAsync của Repository implementation)
         var transactions = await _transactionRepo.GetAsync(
-            t => t.TransactionDate >= startDate && t.TransactionDate <= endDate,
+            t => t.TransactionDate >= startDate && t.TransactionDate < endDate,
             cancellationToken);
 
         var totalIncome = transactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);

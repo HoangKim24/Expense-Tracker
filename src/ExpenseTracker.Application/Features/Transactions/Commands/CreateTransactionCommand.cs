@@ -70,10 +70,14 @@ public class CreateTransactionCommandHandler : IRequestHandler<CreateTransaction
             }
         }
 
+        var transactionDate = request.TransactionDate.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(request.TransactionDate, DateTimeKind.Utc)
+            : request.TransactionDate.ToUniversalTime();
+
         var transaction = new Transaction
         {
             Amount = request.Amount,
-            TransactionDate = request.TransactionDate,
+            TransactionDate = transactionDate,
             Description = request.Description,
             CategoryId = request.CategoryId,
             Source = request.Source,

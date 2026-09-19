@@ -49,18 +49,57 @@ public static class DependencyInjection
 
     private static string NormalizePostgresConnectionString(string connectionString)
     {
+        connectionString = connectionString.Trim();
         if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
             connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
-                var uri = new Uri(connectionString);
-                var userInfo = uri.UserInfo.Split(':');
-                var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
-                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
-                var host = uri.Host;
-                var port = uri.Port > 0 ? uri.Port : 5432;
-                var database = uri.AbsolutePath.TrimStart('/');
+                var schemeEnd = connectionString.IndexOf("://", StringComparison.Ordinal);
+                var withoutScheme = connectionString.Substring(schemeEnd + 3);
+
+                var slashIndex = withoutScheme.IndexOf('/');
+                var authority = slashIndex >= 0 ? withoutScheme.Substring(0, slashIndex) : withoutScheme;
+                var path = slashIndex >= 0 ? withoutScheme.Substring(slashIndex + 1) : "postgres";
+
+                var questionIndex = path.IndexOf('?');
+                var database = questionIndex >= 0 ? path.Substring(0, questionIndex) : path;
+                if (string.IsNullOrWhiteSpace(database)) database = "postgres";
+
+                var lastAt = authority.LastIndexOf('@');
+                string username = "postgres";
+                string password = "";
+                string hostPort = authority;
+
+                if (lastAt >= 0)
+                {
+                    var userPass = authority.Substring(0, lastAt);
+                    hostPort = authority.Substring(lastAt + 1);
+
+                    var colonIndex = userPass.IndexOf(':');
+                    if (colonIndex >= 0)
+                    {
+                        username = Uri.UnescapeDataString(userPass.Substring(0, colonIndex));
+                        password = Uri.UnescapeDataString(userPass.Substring(colonIndex + 1));
+                    }
+                    else
+                    {
+                        username = Uri.UnescapeDataString(userPass);
+                    }
+                }
+
+                var portColon = hostPort.LastIndexOf(':');
+                string host = hostPort;
+                int port = 5432;
+
+                if (portColon >= 0)
+                {
+                    host = hostPort.Substring(0, portColon);
+                    if (int.TryParse(hostPort.Substring(portColon + 1), out var p))
+                    {
+                        port = p;
+                    }
+                }
 
                 return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
             }

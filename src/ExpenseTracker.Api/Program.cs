@@ -3,6 +3,7 @@ using ExpenseTracker.Application;
 using ExpenseTracker.Infrastructure;
 using ExpenseTracker.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,8 +65,26 @@ using (var scope = app.Services.CreateScope())
         {
             if (db.Database.IsNpgsql())
             {
-                // Supabase PostgreSQL: Tự động khởi tạo cấu trúc bảng và nạp danh mục mặc định
-                await db.Database.EnsureCreatedAsync();
+                // Supabase PostgreSQL: Kiểm tra xem bảng Categories đã tồn tại chưa
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync("SELECT 1 FROM \"Categories\" LIMIT 1;");
+                }
+                catch
+                {
+                    app.Logger.LogInformation("Creating tables and seeding data on Supabase PostgreSQL...");
+                    try
+                    {
+                        var creator = db.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator>();
+                        await creator.CreateTablesAsync();
+                    }
+                    catch
+                    {
+                        var sql = db.Database.GenerateCreateScript();
+                        await db.Database.ExecuteSqlRawAsync(sql);
+                    }
+                    app.Logger.LogInformation("Tables created successfully on Supabase.");
+                }
             }
             else
             {

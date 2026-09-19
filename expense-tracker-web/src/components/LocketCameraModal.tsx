@@ -55,29 +55,55 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     }
   }, [stream]);
 
-  // Khởi động stream camera
+  // Khởi động stream camera - Chuẩn hóa cho iOS Safari
   const startCamera = useCallback(async (mode: "environment" | "user") => {
     stopStream();
+    setHasCameraPermission(null);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setHasCameraPermission(false);
+      return;
+    }
+
+    let newStream: MediaStream | null = null;
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCameraPermission(false);
-        return;
-      }
-      const newStream = await navigator.mediaDevices.getUserMedia({
+      newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: mode },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
+    } catch {
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: mode },
+          audio: false,
+        });
+      } catch {
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        } catch {
+          setHasCameraPermission(false);
+          return;
+        }
+      }
+    }
+
+    if (newStream) {
       setStream(newStream);
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(() => {});
+        };
+        videoRef.current.play().catch(() => {});
       }
-    } catch {
-      setHasCameraPermission(false);
     }
   }, [stopStream]);
 
@@ -314,7 +340,15 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
           </div>
 
           {/* MAIN VIEWFINDER / PHOTO CANVAS */}
-          <div className="relative flex-1 w-full aspect-[4/5] sm:aspect-[4/5] bg-neutral-950 rounded-[38px] overflow-hidden border-2 border-white/15 shadow-2xl flex items-center justify-center select-none my-1">
+          <div 
+            className="relative flex-1 w-full aspect-[4/5] sm:aspect-[4/5] bg-neutral-950 rounded-[38px] overflow-hidden border-2 border-white/15 shadow-2xl flex items-center justify-center select-none my-1"
+            style={{
+              WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+              transform: "translateZ(0)",
+              WebkitTransform: "translateZ(0)",
+              isolation: "isolate"
+            }}
+          >
             {!capturedImage ? (
               /* LIVE CAMERA FEED */
               <>
@@ -341,7 +375,11 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                     autoPlay
                     playsInline
                     muted
-                    className={`w-full h-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
+                    className={`w-full h-full object-cover pointer-events-none ${facingMode === "user" ? "-scale-x-100" : ""}`}
+                    style={{
+                      transform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
+                      WebkitTransform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
+                    }}
                   />
                 )}
 

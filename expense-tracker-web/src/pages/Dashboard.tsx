@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { 
-  ArrowDownRight, 
   ArrowUpRight, 
   PlusCircle, 
   Tag, 
   ChevronRight, 
-  Trash2,
-  CheckCircle2,
-  Calendar,
-  Camera
+  Camera,
+  CheckCircle2
 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -20,7 +17,6 @@ import {
   getCategories,
   createTransaction,
   deleteTransaction,
-  getReceiptImageUrl,
   TransactionType,
   TransactionSource,
   type DashboardMetricsDto,
@@ -145,46 +141,28 @@ export default function Dashboard() {
   // Weekly calculations
   const weeklyTotals = useMemo(() => getWeeklyTotals(transactions), [transactions]);
   const maxWeeklyTotal = Math.max(...weeklyTotals.map((day) => day.amount), 1);
-  const recentTransactions = transactions.slice(0, 5);
+
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4">
-      {/* 1. Thẻ Số Dư & Thu / Chi Cốt Lõi */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {/* Số dư */}
-        <div className="col-span-2 sm:col-span-1 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-4 shadow-lg flex flex-col justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Số Dư Khả Dụng</span>
-          <p className={`text-2xl font-black tracking-tight mt-1 ${
-            (metrics?.balance ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
-          }`}>
-            {isLoading ? "..." : formatCurrency(metrics?.balance ?? 0)}
-          </p>
+      {/* 1. Thẻ Chi Tiêu Tháng Này — Hero Metric */}
+      <section className="rounded-2xl bg-gradient-to-br from-rose-950/60 to-slate-950 border border-rose-800/40 p-5 shadow-xl">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Chi Tiêu Tháng Này</span>
+          <span className="p-1.5 rounded-xl bg-rose-500/15 text-rose-400">
+            <ArrowUpRight size={16} />
+          </span>
         </div>
-
-        {/* Tổng chi */}
-        <div className="rounded-2xl bg-slate-900/90 border border-slate-800/80 p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Tổng Chi</span>
-            <span className="p-1 rounded-lg bg-rose-500/10 text-rose-400">
-              <ArrowUpRight size={14} />
-            </span>
-          </div>
-          <p className="text-xl font-black text-rose-400 tracking-tight mt-1">
-            {isLoading ? "..." : formatCurrency(metrics?.totalExpense ?? 0)}
-          </p>
-        </div>
-
-        {/* Tổng thu */}
-        <div className="rounded-2xl bg-slate-900/90 border border-slate-800/80 p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Tổng Thu</span>
-            <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <ArrowDownRight size={14} />
-            </span>
-          </div>
-          <p className="text-xl font-black text-emerald-400 tracking-tight mt-1">
-            {isLoading ? "..." : formatCurrency(metrics?.totalIncome ?? 0)}
-          </p>
+        <p className="text-4xl font-black text-rose-400 tracking-tight">
+          {isLoading ? "..." : formatCurrency(metrics?.totalExpense ?? 0)}
+        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mt-3 pt-3 border-t border-rose-950/70 text-xs">
+          <span className="text-slate-400 font-medium">
+            {new Date().toLocaleString("vi-VN", { month: "long", year: "numeric" })}
+          </span>
+          <span className="text-amber-400/90 font-semibold flex items-center gap-1">
+            🎯 Tối ưu chi tiêu tháng này để lên kế hoạch tiết kiệm tháng sau
+          </span>
         </div>
       </section>
 
@@ -398,75 +376,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 5. Giao Dịch Gần Đây */}
-      <section className="rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">Giao dịch gần đây</h2>
-          <Link to="/history" className="text-xs font-bold text-blue-400">Tất cả</Link>
-        </div>
-
-        <div className="divide-y divide-slate-800/80">
-          {recentTransactions.map((t) => {
-            const isIncome = t.type === TransactionType.Income;
-            const hasReceipt = !!t.receiptImagePath;
-            const receiptUrl = getReceiptImageUrl(t.receiptImagePath);
-
-            return (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTransaction(t)}
-                className="flex items-center justify-between gap-3 py-3 hover:bg-slate-800/40 rounded-xl px-2 cursor-pointer transition"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  {hasReceipt && receiptUrl ? (
-                    <div className="relative h-10 w-10 shrink-0 rounded-xl overflow-hidden border border-indigo-400/40 bg-black">
-                      <img src={receiptUrl} alt="Bill" className="h-full w-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                      isIncome ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                    }`}>
-                      {isIncome ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
-                    </div>
-                  )}
-
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-white">
-                      {t.description || t.merchant || "Giao dịch"}
-                    </p>
-                    <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
-                      {t.categoryName && <span>• {t.categoryName}</span>}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-xs font-black ${isIncome ? "text-emerald-400" : "text-rose-400"}`}>
-                    {isIncome ? "+" : "-"}{formatCurrency(t.amount)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Xóa giao dịch này?")) {
-                        handleDelete(t.id);
-                      }
-                    }}
-                    className="p-1 rounded text-slate-500 hover:text-rose-400 transition"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {!isLoading && recentTransactions.length === 0 && (
-            <p className="text-center text-xs font-medium text-slate-500 py-4">Chưa có giao dịch nào gần đây.</p>
-          )}
-        </div>
-      </section>
 
       {/* Polaroid Detail Modal */}
       <PolaroidDetailModal

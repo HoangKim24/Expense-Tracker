@@ -1,23 +1,9 @@
-import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
 
 export default function MainLayout() {
   const location = useLocation();
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved ? saved === "dark" : true; // Mặc định Dark Mode chuẩn
-  });
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDarkMode]);
 
   const navItems = [
     { name: "Tổng quan", path: "/", icon: "dashboard" },
@@ -41,17 +27,6 @@ export default function MainLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 transition flex items-center justify-center"
-              title="Đổi giao diện Sáng / Tối"
-            >
-              <span className="material-symbols-outlined text-[20px]">
-                {isDarkMode ? "light_mode" : "dark_mode"}
-              </span>
-            </button>
-          </div>
         </div>
       </header>
 

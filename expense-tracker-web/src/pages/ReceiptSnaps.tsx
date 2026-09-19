@@ -1,15 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { 
-  Camera, 
   Trash2, 
   Sparkles, 
   Image as ImageIcon, 
   RefreshCw, 
-  Zap, 
   RotateCcw, 
   Send, 
-  Tag, 
-  Grid
+  ChevronDown,
+  X,
+  HelpCircle,
+  Camera,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -36,8 +37,10 @@ export default function ReceiptSnaps() {
   const [receiptTransactions, setReceiptTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Trạng thái camera Locket
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -91,33 +94,63 @@ export default function ReceiptSnaps() {
     }
   }, [stream]);
 
-  // Bật camera Locket trực tiếp
+  // Bật camera - Chuẩn hóa đặc biệt cho iOS Safari (iPhone 15)
   const startCamera = useCallback(async (mode: "environment" | "user") => {
     stopStream();
+    setHasCameraPermission(null);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setHasCameraPermission(false);
+      return;
+    }
+
+    let newStream: MediaStream | null = null;
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCameraPermission(false);
-        return;
-      }
-      const newStream = await navigator.mediaDevices.getUserMedia({
+      // Thử với facingMode lý tưởng (không ép tỷ lệ vuông cứng để tránh Safari iOS AVFoundation lỗi stream đen)
+      newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: mode },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
+    } catch {
+      try {
+        // Fallback 1: facingMode trực tiếp
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: mode },
+          audio: false,
+        });
+      } catch {
+        try {
+          // Fallback 2: bất kỳ camera video nào
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        } catch {
+          setHasCameraPermission(false);
+          return;
+        }
+      }
+    }
+
+    if (newStream) {
       setStream(newStream);
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
+        // Bắt buộc gọi play() trên iOS Safari
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(() => {});
+        };
+        videoRef.current.play().catch(() => {});
       }
-    } catch {
-      setHasCameraPermission(false);
     }
   }, [stopStream]);
 
-  // Mở camera NGAY LẬP TỨC khi vào trang
+  // Mở camera khi vào tab camera
   useEffect(() => {
     if (viewMode === "camera" && !capturedImage) {
       startCamera(facingMode);
@@ -129,10 +162,11 @@ export default function ReceiptSnaps() {
     };
   }, [viewMode, facingMode, capturedImage, startCamera, stopStream]);
 
-  // Gắn stream vào video tag
+  // Gắn stream vào thẻ video và kích hoạt play
   useEffect(() => {
     if (videoRef.current && stream && !capturedImage) {
       videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
     }
   }, [stream, capturedImage]);
 
@@ -159,8 +193,8 @@ export default function ReceiptSnaps() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement("canvas");
-    canvas.width = video.videoWidth || 720;
-    canvas.height = video.videoHeight || 720;
+    canvas.width = video.videoWidth || 1080;
+    canvas.height = video.videoHeight || 1080;
 
     const ctx = canvas.getContext("2d");
     if (ctx) {
@@ -237,7 +271,7 @@ export default function ReceiptSnaps() {
       }
 
       const selectedCat = categories.find((c) => c.id === selectedCategoryId);
-      const defaultDesc = selectedCat ? `${selectedCat.name} (Locket Snap)` : "Khoảnh khắc chi tiêu Snap";
+      const defaultDesc = selectedCat ? `${selectedCat.name} (Hóa đơn Snap)` : "Khoảnh khắc chi tiêu Snap";
 
       await createTransaction({
         amount: numericAmount,
@@ -289,9 +323,10 @@ export default function ReceiptSnaps() {
 
   const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
   const totalSnapExpense = receiptTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 px-3 sm:px-4 pt-3 pb-8">
+    <div className="w-full max-w-md mx-auto min-h-[calc(100vh-8.5rem)] flex flex-col justify-between select-none">
       {/* Hidden Canvas & Input File */}
       <canvas ref={canvasRef} className="hidden" />
       <input
@@ -316,93 +351,72 @@ export default function ReceiptSnaps() {
         )}
       </AnimatePresence>
 
-      {/* TOP HEADER: Chuyển đổi giữa Camera Trực Tiếp & Kho Hóa Đơn */}
-      <div className="flex items-center justify-between bg-slate-900 border border-slate-800/80 p-2 rounded-2xl shadow-md">
-        <div className="flex gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
-          <button
-            type="button"
-            onClick={() => setViewMode("camera")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition ${
-              viewMode === "camera"
-                ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Camera size={14} className={viewMode === "camera" ? "text-slate-950" : ""} />
-            <span>Camera Live</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black transition ${
-              viewMode === "gallery"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Grid size={14} />
-            <span>Kho Hóa Đơn ({receiptTransactions.length})</span>
-          </button>
-        </div>
-
-        {/* Tổng tiền chi qua snap */}
-        <div className="text-right px-2">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Đã chi qua Snap</span>
-          <span className="text-sm font-black text-rose-400">{formatCurrency(totalSnapExpense)}</span>
-        </div>
-      </div>
-
-      {/* PHẦN 1: CAMERA TRỰC TIẾP CHUẨN LOCKET (HIỆN NGAY KHI VÀO TAB) */}
+      {/* VIEW 1: CAMERA TOÀN DIỆN CHUẨN LOCKET (ẢNH BÊN PHẢI) */}
       {viewMode === "camera" && (
-        <div className="space-y-4">
-          {/* LOCKET CAMERA CONTAINER TRỰC TIẾP */}
-          <div className="relative w-full max-w-[420px] mx-auto bg-black sm:bg-slate-950 border border-slate-800/90 rounded-[38px] p-3 sm:p-4 shadow-2xl overflow-hidden flex flex-col justify-between">
-            {/* Top Bar bên trong Camera */}
-            <div className="flex items-center justify-between px-2 pt-1 pb-2 z-20">
-              {capturedImage ? (
-                <button
-                  type="button"
-                  onClick={handleRetake}
-                  className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white backdrop-blur-xl border border-white/20 flex items-center justify-center transition shadow-lg"
-                  title="Chụp lại"
-                >
-                  <RotateCcw size={16} />
-                </button>
-              ) : (
-                <div className="w-9 h-9" />
-              )}
+        <div className="flex-1 flex flex-col justify-between py-2 px-3">
+          {/* Top Bar: [X] bên trái và [?] bên phải */}
+          <div className="flex items-center justify-between px-1 py-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (capturedImage) {
+                  handleRetake();
+                } else {
+                  setViewMode("gallery");
+                }
+              }}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
+              title={capturedImage ? "Chụp lại" : "Kho hóa đơn"}
+            >
+              <X size={26} strokeWidth={2.2} />
+            </button>
 
-              {/* Locket badge */}
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white shadow-inner">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#facc15]" />
-                <span className="text-xs font-black tracking-wider uppercase">Locket Snap Cam</span>
-              </div>
-
-              {/* Flash / Help */}
-              <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center text-amber-300">
-                <Zap size={16} />
-              </div>
+            {/* Hint giữa màn hình */}
+            <div className="text-center">
+              <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                {capturedImage ? "Chi Tiết Chi Phí" : "Chụp Hóa Đơn"}
+              </span>
             </div>
 
-            {/* VIEWFINDER & CANVAS */}
-            <div className="relative w-full aspect-[4/5] bg-neutral-950 rounded-[32px] overflow-hidden border-2 border-white/15 shadow-2xl flex items-center justify-center select-none my-1">
+            <button
+              type="button"
+              onClick={() => setShowHelpModal(true)}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition"
+              title="Hướng dẫn & Mục tiêu"
+            >
+              <HelpCircle size={24} strokeWidth={2.2} />
+            </button>
+          </div>
+
+          {/* KHUNG VIEWFINDER SQUIRCLE CHUẨN LOCKET */}
+          <div className="relative my-auto py-2">
+            <div 
+              className="relative w-full aspect-square max-w-[350px] mx-auto rounded-[38px] overflow-hidden bg-neutral-950 shadow-2xl flex items-center justify-center select-none"
+              style={{
+                WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                transform: "translateZ(0)",
+                WebkitTransform: "translateZ(0)",
+                isolation: "isolate"
+              }}
+            >
               {!capturedImage ? (
                 /* LIVE CAMERA FEED */
                 <>
                   {hasCameraPermission === false ? (
                     <div className="text-center px-6 space-y-4">
-                      <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center mx-auto text-slate-300">
+                      <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto text-slate-300">
                         <ImageIcon size={28} />
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-bold text-white">Chưa cấp quyền Camera</p>
-                        <p className="text-xs text-slate-400">Bạn có thể chọn ảnh hóa đơn sẵn có trong máy.</p>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Vui lòng cho phép quyền truy cập camera hoặc chọn ảnh từ máy.
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 font-bold text-xs text-white shadow-lg active:scale-95 transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-600 font-bold text-xs text-white shadow-lg active:scale-95 transition"
                       >
                         <ImageIcon size={16} /> Chọn ảnh từ thư viện
                       </button>
@@ -413,14 +427,19 @@ export default function ReceiptSnaps() {
                       autoPlay
                       playsInline
                       muted
-                      className={`w-full h-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
+                      className={`w-full h-full object-cover pointer-events-none ${
+                        facingMode === "user" ? "-scale-x-100" : ""
+                      }`}
+                      style={{
+                        transform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
+                        WebkitTransform: facingMode === "user" ? "scaleX(-1) translateZ(0)" : "translateZ(0)",
+                      }}
                     />
                   )}
 
-                  {/* Guide Frame */}
-                  <div className="absolute inset-3 pointer-events-none rounded-[26px] border border-white/15" />
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-[10px] font-medium text-white/80 border border-white/10">
-                    Căn chỉnh hóa đơn / bill
+                  {/* Watermark tinh tế Locket */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none text-white/90 text-sm font-bold tracking-tight drop-shadow-md">
+                    Hóa Đơn Chi Tiêu
                   </div>
                 </>
               ) : (
@@ -431,14 +450,14 @@ export default function ReceiptSnaps() {
                     alt="Locket snap"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/50 via-transparent to-black/70" />
+                  <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/50 via-transparent to-black/75" />
 
-                  {/* 1. STICKER SỐ TIỀN PHONG CÁCH INSTAGRAM */}
+                  {/* 1. STICKER NHẬP TIỀN */}
                   <div className="absolute top-4 inset-x-3 flex flex-col items-center z-10">
                     <motion.div
-                      initial={{ scale: 0.88, opacity: 0 }}
+                      initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="w-full max-w-[280px] px-4 py-2.5 rounded-2xl bg-black/75 backdrop-blur-xl border border-white/30 shadow-2xl flex items-center justify-between gap-2"
+                      className="w-full max-w-[270px] px-3.5 py-2.5 rounded-2xl bg-black/80 backdrop-blur-xl border border-white/30 shadow-2xl flex items-center justify-between gap-2"
                     >
                       <span className="text-xl">💸</span>
                       <div className="flex-1 flex items-center justify-center">
@@ -458,14 +477,14 @@ export default function ReceiptSnaps() {
                       <span className="text-xs font-black text-amber-400">VNĐ</span>
                     </motion.div>
 
-                    {/* Quick increment chips */}
+                    {/* Chips cộng tiền nhanh */}
                     <div className="flex gap-1.5 mt-2 overflow-x-auto max-w-full px-1 py-0.5 no-scrollbar">
                       {[10000, 20000, 50000, 100000, 200000].map((add) => (
                         <button
                           key={add}
                           type="button"
                           onClick={() => handleAddQuickAmount(add)}
-                          className="shrink-0 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-bold text-white hover:bg-white/20 active:scale-95 transition shadow-sm"
+                          className="shrink-0 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/25 text-[11px] font-bold text-white hover:bg-white/20 active:scale-95 transition shadow-sm"
                         >
                           +{add >= 1000 ? `${add / 1000}k` : add}
                         </button>
@@ -473,16 +492,16 @@ export default function ReceiptSnaps() {
                     </div>
                   </div>
 
-                  {/* 2. THANH GHI CHÚ CAPSULE LOCKET */}
+                  {/* 2. CAPSULE GHI CHÚ */}
                   <div className="absolute bottom-4 inset-x-3 z-10">
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/80 backdrop-blur-xl border border-white/30 shadow-2xl">
+                    <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-black/80 backdrop-blur-xl border border-white/30 shadow-2xl">
                       <Sparkles size={15} className="text-amber-400 shrink-0" />
                       <input
                         type="text"
-                        placeholder="Gửi một ghi chú... (VD: Cà phê Highlands)"
+                        placeholder="Ghi chú chi tiêu... (VD: Ăn phở, Cà phê)"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-white/50 focus:outline-none font-semibold"
+                        className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-white/50 focus:outline-none font-medium"
                       />
                     </div>
                   </div>
@@ -490,154 +509,171 @@ export default function ReceiptSnaps() {
               )}
             </div>
 
-            {/* ĐÁY CAMERA: NÚT SHUTTER HOẶC NÚT GỬI LOCKET */}
+            {/* NÚT PILL CHỌN DANH MỤC DƯỚI VIEWFINDER (TƯƠNG TỰ 'BẠN THÂN ⌵' TRONG ẢNH MẪU) */}
+            <div className="flex justify-center mt-3 relative">
+              <button
+                type="button"
+                onClick={() => setIsCategoryPickerOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900/90 border border-white/20 text-white text-xs font-bold shadow-lg active:scale-95 transition"
+              >
+                <span 
+                  className="w-2.5 h-2.5 rounded-full" 
+                  style={{ backgroundColor: selectedCategory?.color || "#10b981" }} 
+                />
+                <span>{selectedCategory?.name || "Chọn danh mục"}</span>
+                <ChevronDown size={14} className={`text-white/70 transition-transform duration-200 ${isCategoryPickerOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Dropdown danh mục popover */}
+              <AnimatePresence>
+                {isCategoryPickerOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-12 z-30 w-64 p-2 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl border border-white/20 shadow-2xl space-y-1"
+                  >
+                    <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
+                      Chọn danh mục chi tiêu
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1 no-scrollbar">
+                      {categories.map((cat) => {
+                        const isSelected = selectedCategoryId === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategoryId(cat.id);
+                              setIsCategoryPickerOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition ${
+                              isSelected ? "bg-white/20 text-white" : "text-slate-300 hover:bg-white/10"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: cat.color || "#38bdf8" }}
+                              />
+                              <span>{cat.name}</span>
+                            </div>
+                            {isSelected && <Check size={14} className="text-amber-400" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* PHẦN ĐÁY: BỘ ĐIỀU KHIỂN CHỤP & SWITCHER CHUẨN LOCKET */}
+          <div className="space-y-3 pt-1 pb-2">
             {!capturedImage ? (
-              <div className="w-full pt-3 pb-2 flex items-center justify-around px-4">
-                {/* Chọn ảnh từ máy */}
+              /* LIVE CONTROLS */
+              <div className="flex items-center justify-around px-4">
+                {/* 1. Nút chọn ảnh thư viện */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
-                  title="Chọn ảnh từ thư viện"
+                  className="w-12 h-12 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg"
+                  title="Chọn ảnh từ máy"
                 >
                   <ImageIcon size={20} />
                 </button>
 
-                {/* Nút chụp viền đôi Locket Shutter */}
+                {/* 2. NÚT CHỤP LOCKET SHUTTER LỚN */}
                 <button
                   type="button"
                   onClick={handleCapture}
                   disabled={hasCameraPermission === false}
-                  className="relative flex items-center justify-center w-20 h-20 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
+                  className="w-20 h-20 rounded-full border-[5px] border-white p-1 flex items-center justify-center active:scale-90 transition duration-150 shadow-[0_0_25px_rgba(255,255,255,0.35)] disabled:opacity-40"
                   title="Chụp ảnh"
                 >
-                  <span className="w-full h-full rounded-full bg-white shadow-inner flex items-center justify-center" />
+                  <span className="w-full h-full rounded-full bg-white transition" />
                 </button>
 
-                {/* Lật camera */}
+                {/* 3. Nút lật camera trước / sau */}
                 <button
                   type="button"
                   onClick={handleToggleCamera}
                   disabled={hasCameraPermission === false}
-                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
-                  title="Đổi camera trước/sau"
+                  className="w-12 h-12 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg disabled:opacity-40"
+                  title="Lật camera"
                 >
-                  <RefreshCw size={20} />
+                  <RotateCcw size={20} />
                 </button>
               </div>
             ) : (
-              <div className="w-full pt-2 pb-1 space-y-2.5">
-                {/* Chọn danh mục */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1 px-1 text-[11px] font-bold text-slate-400">
-                    <Tag size={11} /> Danh mục:
-                  </div>
-                  <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
-                    {categories.map((cat) => {
-                      const isSelected = selectedCategoryId === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setSelectedCategoryId(cat.id)}
-                          style={{
-                            borderColor: isSelected ? cat.color : "rgba(255,255,255,0.15)",
-                            backgroundColor: isSelected ? `${cat.color}33` : "rgba(255,255,255,0.08)",
-                          }}
-                          className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition border active:scale-95 ${
-                            isSelected ? "text-white ring-1 ring-white/40" : "text-slate-300 hover:bg-white/15"
-                          }`}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: cat.color || "#38bdf8" }}
-                          />
-                          {cat.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+              /* POST-CAPTURE CONTROLS */
+              <div className="flex items-center gap-3 px-3">
+                <button
+                  type="button"
+                  onClick={handleRetake}
+                  className="w-14 h-14 rounded-full bg-neutral-900/90 border border-white/20 text-white flex items-center justify-center active:scale-90 transition shadow-lg shrink-0"
+                  title="Chụp lại"
+                >
+                  <RotateCcw size={20} />
+                </button>
 
-                {/* Nút Vàng Locket Gửi Vào Sổ */}
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting || !amount}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-200 active:scale-[0.98] font-black text-slate-950 text-sm shadow-[0_0_25px_rgba(251,191,36,0.45)] transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
+                  className="flex-1 py-3.5 px-6 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-black text-sm shadow-[0_0_25px_rgba(251,191,36,0.4)] active:scale-98 transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {isSubmitting ? (
                     <>
-                      <RefreshCw size={18} className="animate-spin" /> Đang gửi vào Sổ Chi Tiêu...
+                      <RefreshCw size={18} className="animate-spin" /> Đang lưu...
                     </>
                   ) : (
                     <>
-                      <Send size={17} className="fill-slate-950" /> Gửi Vào Sổ Chi Tiêu
+                      <Send size={18} className="fill-slate-950" /> Gửi Vào Sổ Chi Tiêu
                     </>
                   )}
                 </button>
               </div>
             )}
-          </div>
 
-          {/* DẢI HÓA ĐƠN VỪA LƯU GẦN ĐÂY */}
-          {receiptTransactions.length > 0 && (
-            <div className="pt-2 space-y-2 max-w-[420px] mx-auto">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-slate-400">Hóa đơn gần đây</span>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("gallery")}
-                  className="text-xs font-bold text-amber-400 hover:underline"
-                >
-                  Xem tất cả ({receiptTransactions.length}) &rarr;
-                </button>
-              </div>
-
-              <div className="flex gap-2.5 overflow-x-auto pb-2 no-scrollbar">
-                {receiptTransactions.slice(0, 5).map((t) => {
-                  const url = getReceiptImageUrl(t.receiptImagePath);
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => setSelectedTransaction(t)}
-                      className="shrink-0 w-24 bg-slate-900 border border-slate-800 p-1.5 pb-2 rounded-2xl cursor-pointer hover:border-slate-700 transition"
-                    >
-                      <div className="w-full aspect-square rounded-xl overflow-hidden bg-black">
-                        {url ? (
-                          <img src={url} alt={t.description} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon size={20} className="m-auto text-slate-600" />
-                        )}
-                      </div>
-                      <p className="text-[10px] font-black text-rose-400 mt-1 truncate">
-                        -{formatCurrency(t.amount)}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* TAB TEXT BOTTOM SWITCHER (GIỐNG LOCKET: KHO HÓA ĐƠN | ẢNH CHỤP NHANH) */}
+            <div className="flex items-center justify-center gap-8 pt-1 text-xs font-bold uppercase tracking-wider select-none">
+              <button
+                type="button"
+                onClick={() => setViewMode("gallery")}
+                className="text-neutral-500 hover:text-white transition active:scale-95"
+              >
+                Kho Hóa Đơn ({receiptTransactions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("camera")}
+                className="text-white font-black tracking-wider relative flex flex-col items-center"
+              >
+                <span>Ảnh Chụp Nhanh</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1" />
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* PHẦN 2: KHO HÓA ĐƠN POLAROID ĐẦY ĐỦ (GALLERY GRID) */}
+      {/* VIEW 2: KHO HÓA ĐƠN POLAROID ĐẦY ĐỦ (GALLERY VIEW) */}
       {viewMode === "gallery" && (
-        <section className="space-y-3">
+        <section className="flex-1 flex flex-col justify-between py-3 px-3 space-y-4">
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={15} className="text-amber-400" />
-              <h2 className="text-sm font-black uppercase tracking-wider text-white">
-                Tất Cả Ảnh Hóa Đơn ({receiptTransactions.length})
-              </h2>
+            <div>
+              <h2 className="text-base font-black text-white">Kho Ảnh Hóa Đơn</h2>
+              <p className="text-xs text-rose-400 font-bold">Đã chi: {formatCurrency(totalSnapExpense)}</p>
             </div>
             <button
               type="button"
               onClick={() => setViewMode("camera")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 active:scale-95 transition"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 transition"
             >
-              <Camera size={13} className="text-slate-950" /> Chụp Thêm
+              <Camera size={14} className="text-slate-950" /> Chụp Thêm
             </button>
           </div>
 
@@ -649,9 +685,8 @@ export default function ReceiptSnaps() {
                 <div
                   key={t.id}
                   onClick={() => setSelectedTransaction(t)}
-                  className="bg-slate-900 border border-slate-800 p-2.5 pb-3.5 rounded-2xl shadow-lg hover:border-slate-700 transition cursor-pointer flex flex-col justify-between group"
+                  className="bg-slate-900 border border-slate-800 p-2.5 pb-3 rounded-2xl shadow-lg hover:border-slate-700 transition cursor-pointer flex flex-col justify-between group"
                 >
-                  {/* Ảnh Polaroid */}
                   <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-black shadow-inner">
                     {url ? (
                       <img
@@ -665,14 +700,12 @@ export default function ReceiptSnaps() {
                       </div>
                     )}
 
-                    {/* Date badge */}
                     <div className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[9px] font-bold text-white">
                       {new Date(t.transactionDate).toLocaleDateString("vi-VN", { day: "numeric", month: "numeric" })}
                     </div>
                   </div>
 
-                  {/* Thông tin trên thẻ Polaroid */}
-                  <div className="mt-2.5 px-1 space-y-1">
+                  <div className="mt-2 px-1 space-y-1">
                     <span className="text-sm font-black text-rose-400 block tracking-tight">
                       -{formatCurrency(t.amount)}
                     </span>
@@ -703,27 +736,91 @@ export default function ReceiptSnaps() {
             })}
           </div>
 
-          {/* Empty State */}
+          {/* Empty State: Văn bản canh chuẩn, KHÔNG bị rớt từ từng chữ */}
           {!isLoading && receiptTransactions.length === 0 && (
-            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-8 text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
-                <Camera size={28} />
+            <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-8 text-center space-y-4 my-auto">
+              <div className="w-16 h-16 rounded-3xl bg-slate-800/80 flex items-center justify-center mx-auto text-slate-400 shadow-inner">
+                <Camera size={32} />
               </div>
-              <p className="text-sm font-bold text-slate-200">Chưa có ảnh hóa đơn nào</p>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                Chụp ảnh hóa đơn khi đi ăn, uống cà phê hoặc mua sắm để ghi nhận chi phí tự động và lưu lại hóa đơn tại đây.
-              </p>
+              <div className="space-y-1.5">
+                <p className="text-base font-bold text-white">Chưa có ảnh hóa đơn nào</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Chụp ảnh hóa đơn khi đi ăn uống, cà phê hoặc mua sắm để theo dõi chi tiêu tháng này và lên kế hoạch tiết kiệm cho tháng sau.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setViewMode("camera")}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 font-black text-xs text-slate-950 shadow-md transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-400 hover:bg-amber-300 font-black text-xs text-slate-950 shadow-lg active:scale-95 transition"
               >
                 <Camera size={15} /> Bật Camera Chụp Ngay
               </button>
             </div>
           )}
+
+          {/* Switcher đáy kho ảnh */}
+          <div className="flex items-center justify-center gap-8 pt-2 pb-1 text-xs font-bold uppercase tracking-wider select-none">
+            <button
+              type="button"
+              onClick={() => setViewMode("gallery")}
+              className="text-white font-black tracking-wider relative flex flex-col items-center"
+            >
+              <span>Kho Hóa Đơn</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("camera")}
+              className="text-neutral-500 hover:text-white transition active:scale-95"
+            >
+              Ảnh Chụp Nhanh
+            </button>
+          </div>
         </section>
       )}
+
+      {/* Modal Hướng Dẫn & Mục Tiêu Tiết Kiệm */}
+      <AnimatePresence>
+        {showHelpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4 shadow-2xl text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-amber-400" />
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Mục Tiêu Chi Tiêu</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHelpModal(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+                <p>
+                  🎯 <strong>Mục tiêu:</strong> Ghi nhận tức thì mọi khoản chi thông qua ảnh hóa đơn để kiểm soát chi tiêu tháng này, tìm ra các khoản chi vượt mức để tiết kiệm hiệu quả cho tháng sau.
+                </p>
+                <p>
+                  📸 <strong>Cách dùng:</strong> Hướng camera vào hóa đơn &rarr; Bấm nút Chụp &rarr; Chạm vào nhãn tiền để nhập số tiền &rarr; Bấm "Gửi Vào Sổ".
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(false)}
+                className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs active:scale-95 transition"
+              >
+                Đã hiểu
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Polaroid Detail Modal (xem phóng to) */}
       <PolaroidDetailModal
@@ -732,6 +829,6 @@ export default function ReceiptSnaps() {
         onClose={() => setSelectedTransaction(null)}
         onDelete={handleDelete}
       />
-    </motion.div>
+    </div>
   );
 }

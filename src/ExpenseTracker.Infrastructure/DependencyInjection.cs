@@ -18,8 +18,25 @@ public static class DependencyInjection
             services.AddSingleton<EncryptionHelper>();
         }
 
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? configuration["DATABASE_URL"];
+
         services.AddDbContext<ExpenseDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        {
+            var isPostgres = !string.IsNullOrEmpty(connectionString) &&
+                (connectionString.StartsWith("postgres", StringComparison.OrdinalIgnoreCase) ||
+                 connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase) ||
+                 configuration["DB_PROVIDER"]?.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) == true);
+
+            if (isPostgres)
+            {
+                options.UseNpgsql(NormalizePostgresConnectionString(connectionString!));
+            }
+            else
+            {
+                options.UseSqlServer(connectionString ?? configuration.GetConnectionString("DefaultConnection"));
+            }
+        });
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -28,5 +45,30 @@ public static class DependencyInjection
         services.AddHostedService<TelegramBotBackgroundService>(); // Kích hoạt Bot
 
         return services;
+    }
+
+    private static string NormalizePostgresConnectionString(string connectionString)
+    {
+        if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+            connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var uri = new Uri(connectionString);
+                var userInfo = uri.UserInfo.Split(':');
+                var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+                var host = uri.Host;
+                var port = uri.Port > 0 ? uri.Port : 5432;
+                var database = uri.AbsolutePath.TrimStart('/');
+
+                return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
+            }
+            catch
+            {
+                return connectionString;
+            }
+        }
+        return connectionString;
     }
 }

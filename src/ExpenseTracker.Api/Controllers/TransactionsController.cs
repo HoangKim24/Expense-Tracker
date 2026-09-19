@@ -39,7 +39,10 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPost("upload-receipt")]
-    public async Task<IActionResult> UploadReceipt(IFormFile? file, [FromServices] IWebHostEnvironment env)
+    public async Task<IActionResult> UploadReceipt(
+        IFormFile? file, 
+        [FromServices] IWebHostEnvironment env,
+        [FromServices] IConfiguration config)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Không có file ảnh nào được tải lên." });
@@ -54,6 +57,40 @@ public class TransactionsController : ControllerBase
             extension = ".jpg";
         }
 
+        var uniqueFileName = $"receipt_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}{extension}";
+
+        // Tự động upload lên Supabase Storage nếu có cấu hình
+        var supabaseUrl = config["SUPABASE_URL"];
+        var supabaseKey = config["SUPABASE_SERVICE_ROLE_KEY"] ?? config["SUPABASE_KEY"] ?? config["SUPABASE_ANON_KEY"];
+
+        if (!string.IsNullOrEmpty(supabaseUrl) && !string.IsNullOrEmpty(supabaseKey))
+        {
+            try
+            {
+                var cleanUrl = supabaseUrl.TrimEnd('/');
+                var endpoint = $"{cleanUrl}/storage/v1/object/receipts/{uniqueFileName}";
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("apikey", supabaseKey);
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
+
+                using var stream = file.OpenReadStream();
+                using var content = new StreamContent(stream);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "image/jpeg");
+
+                var response = await client.PostAsync(endpoint, content);
+                if (response.IsSuccessStatusCode)
+                {
+                    var publicUrl = $"{cleanUrl}/storage/v1/object/public/receipts/{uniqueFileName}";
+                    return Ok(new { url = publicUrl, path = publicUrl });
+                }
+            }
+            catch
+            {
+                // Fallback nếu có lỗi mạng
+            }
+        }
+
+        // Lưu trữ cục bộ mặc định
         var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
         var uploadsFolder = Path.Combine(webRoot, "uploads");
         if (!Directory.Exists(uploadsFolder))
@@ -61,12 +98,10 @@ public class TransactionsController : ControllerBase
             Directory.CreateDirectory(uploadsFolder);
         }
 
-        var uniqueFileName = $"receipt_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
+        using (var localStream = new FileStream(filePath, FileMode.Create))
         {
-            await file.CopyToAsync(stream);
+            await file.CopyToAsync(localStream);
         }
 
         var relativePath = $"/uploads/{uniqueFileName}";

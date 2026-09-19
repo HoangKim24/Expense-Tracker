@@ -21,7 +21,14 @@ public class ExpenseDbContext : DbContext
             entity.Property(t => t.Amount).HasColumnType("decimal(18,2)");
             entity.HasIndex(t => t.TransactionDate);
             entity.Property(t => t.MessageId).HasMaxLength(255);
-            entity.HasIndex(t => t.MessageId).IsUnique().HasFilter("[MessageId] IS NOT NULL");
+            if (Database.IsSqlServer())
+            {
+                entity.HasIndex(t => t.MessageId).IsUnique().HasFilter("[MessageId] IS NOT NULL");
+            }
+            else
+            {
+                entity.HasIndex(t => t.MessageId).IsUnique().HasFilter("\"MessageId\" IS NOT NULL");
+            }
             entity.Property(t => t.ReceiptImagePath).HasMaxLength(500);
         });
 

@@ -1,30 +1,24 @@
-# Base image for runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-
-# Build stage
+# Multi-stage build for ASP.NET Core 8 Web API
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy all csproj files and restore dependencies
-COPY ["src/ExpenseTracker.Api/ExpenseTracker.Api.csproj", "src/ExpenseTracker.Api/"]
-COPY ["src/ExpenseTracker.Application/ExpenseTracker.Application.csproj", "src/ExpenseTracker.Application/"]
-COPY ["src/ExpenseTracker.Domain/ExpenseTracker.Domain.csproj", "src/ExpenseTracker.Domain/"]
-COPY ["src/ExpenseTracker.Infrastructure/ExpenseTracker.Infrastructure.csproj", "src/ExpenseTracker.Infrastructure/"]
-RUN dotnet restore "src/ExpenseTracker.Api/ExpenseTracker.Api.csproj"
+# Copy project files for caching layer
+COPY ["src/ExpenseTracker.Domain/ExpenseTracker.Domain.csproj", "ExpenseTracker.Domain/"]
+COPY ["src/ExpenseTracker.Application/ExpenseTracker.Application.csproj", "ExpenseTracker.Application/"]
+COPY ["src/ExpenseTracker.Infrastructure/ExpenseTracker.Infrastructure.csproj", "ExpenseTracker.Infrastructure/"]
+COPY ["src/ExpenseTracker.Api/ExpenseTracker.Api.csproj", "ExpenseTracker.Api/"]
 
-# Copy the remaining source code and build
-COPY . .
-WORKDIR "/src/src/ExpenseTracker.Api"
-RUN dotnet build "ExpenseTracker.Api.csproj" -c Release -o /app/build
+RUN dotnet restore "ExpenseTracker.Api/ExpenseTracker.Api.csproj"
 
-# Publish stage
-FROM build AS publish
+# Copy source code and build
+COPY src/ .
+WORKDIR "/src/ExpenseTracker.Api"
 RUN dotnet publish "ExpenseTracker.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Final production stage
-FROM base AS final
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "ExpenseTracker.Api.dll"]

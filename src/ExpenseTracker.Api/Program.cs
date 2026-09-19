@@ -52,7 +52,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-// SQL Server can take a moment to accept connections after its container starts.
+// Auto database initialization (Supports both PostgreSQL on Supabase and SQL Server)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ExpenseDbContext>();
@@ -62,12 +62,21 @@ using (var scope = app.Services.CreateScope())
     {
         try
         {
-            await db.Database.MigrateAsync();
+            if (db.Database.IsNpgsql())
+            {
+                // Supabase PostgreSQL: Tự động khởi tạo cấu trúc bảng và nạp danh mục mặc định
+                await db.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                // SQL Server: Chạy migration
+                await db.Database.MigrateAsync();
+            }
             break;
         }
         catch (Exception ex) when (attempt < maxAttempts)
         {
-            app.Logger.LogWarning(ex, "Database is not ready. Retrying migration ({Attempt}/{MaxAttempts}).", attempt, maxAttempts);
+            app.Logger.LogWarning(ex, "Database is not ready. Retrying connection ({Attempt}/{MaxAttempts}).", attempt, maxAttempts);
             await Task.Delay(TimeSpan.FromSeconds(3));
         }
     }

@@ -13,8 +13,8 @@ const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 function PageLoadingFallback() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
-      <span className="text-xs font-semibold text-slate-400 animate-pulse tracking-wide">
+      <div className="w-7 h-7 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+      <span className="text-xs font-medium text-zinc-400 tracking-wide">
         Đang tải...
       </span>
     </div>
@@ -24,15 +24,14 @@ function PageLoadingFallback() {
 function App() {
   return (
     <>
-      {/* Toast chuẩn hóa phong cách Dynamic Island sang trọng, kính mờ */}
+      {/* Toast chuẩn hóa phong cách Dynamic Island tối giản hiện đại */}
       <Toaster 
         position="top-center" 
         theme="dark" 
-        richColors
         closeButton
         toastOptions={{
-          className: "border border-white/10 bg-slate-900/95 backdrop-blur-2xl shadow-2xl rounded-2xl text-xs sm:text-sm font-medium text-white px-4 py-3.5",
-          duration: 3200,
+          className: "border border-white/10 bg-zinc-950/95 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] rounded-full text-xs font-semibold text-white px-5 py-3",
+          duration: 3000,
         }}
       />
       <Router>

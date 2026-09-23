@@ -148,12 +148,12 @@ export default function TransactionHistory() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4 pb-12">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-black text-white tracking-tight">Lịch Sử Giao Dịch</h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-zinc-400">
             {isLoading ? "Đang tải dữ liệu..." : `${filteredData.length} giao dịch`}
           </p>
         </div>
@@ -163,10 +163,10 @@ export default function TransactionHistory() {
             type="button"
             onClick={handleSyncMoMoCake}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 rounded-xl border border-pink-500/30 bg-pink-500/15 px-3 py-2 text-xs font-bold text-pink-300 hover:bg-pink-500/25 transition disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-50"
             title="Đồng bộ biến động số dư từ MoMo & Cake"
           >
-            <RefreshCw size={13} className={cn("text-pink-400", isSyncing && "animate-spin")} />
+            <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
             <span>{isSyncing ? "Đang quét..." : "Đồng bộ MoMo/Cake"}</span>
           </button>
 
@@ -174,43 +174,48 @@ export default function TransactionHistory() {
             type="button"
             onClick={handleExportCsv}
             disabled={filteredData.length === 0}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 transition disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-40"
           >
-            <Download size={14} /> Xuất CSV
+            <Download size={13} />
+            <span>Xuất CSV</span>
           </button>
         </div>
       </div>
 
-      {/* Summary Card */}
-      <section className="rounded-2xl border border-rose-900/40 bg-gradient-to-br from-rose-950/40 to-slate-900 p-4 shadow-sm flex items-center justify-between">
+      {/* Summary Card - Matte Dark Glass */}
+      <section className="rounded-2xl border border-white/[0.08] bg-zinc-950 p-4 shadow-sm flex items-center justify-between">
         <div>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Tổng Chi Tiêu Đã Lọc</span>
-          <span className="text-2xl font-black text-rose-400 tracking-tight mt-0.5 block">{formatCurrency(totalExpense)}</span>
+          <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
+            Tổng Chi Tiêu Đã Lọc
+          </span>
+          <span className="text-2xl font-black text-white tracking-tight mt-0.5 block">
+            {formatCurrency(totalExpense)}
+          </span>
         </div>
-        <span className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400">
-          <ArrowUpRight size={22} />
+        <span className="p-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white">
+          <ArrowUpRight size={20} />
         </span>
       </section>
 
       {/* Search & Filter Chips */}
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-sm space-y-3">
+      <section className="space-y-3">
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-            <Search size={16} className="text-slate-500" />
+            <Search size={15} className="text-zinc-500" />
           </div>
           <input
             type="text"
-            placeholder="Tìm theo nội dung, danh mục..."
+            placeholder="Tìm theo nội dung, danh mục, số tiền..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setPage(1);
             }}
-            className="w-full min-h-[42px] rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-9 pr-4 text-xs font-medium text-white outline-none transition focus:border-blue-500 placeholder-slate-600"
+            className="w-full min-h-[42px] rounded-2xl border border-white/[0.08] bg-zinc-950 py-2.5 pl-9 pr-4 text-xs font-medium text-white outline-none transition focus:border-white/30 placeholder-zinc-600"
           />
         </div>
 
-        {/* Filter chips */}
+        {/* Filter chips - Segmented Controls */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           {filters.map((filter) => {
             const Icon = filter.icon;
@@ -224,13 +229,13 @@ export default function TransactionHistory() {
                   setPage(1);
                 }}
                 className={cn(
-                  "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition",
+                  "shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95",
                   isSelected
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                    : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
+                    ? "bg-white text-black shadow-sm font-bold"
+                    : "bg-zinc-950 text-zinc-400 border border-white/[0.08] hover:text-white"
                 )}
               >
-                {Icon && <Icon size={13} />}
+                {Icon && <Icon size={12} />}
                 {filter.label}
               </button>
             );
@@ -239,8 +244,8 @@ export default function TransactionHistory() {
       </section>
 
       {/* Transactions List */}
-      <section className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm overflow-hidden">
-        <div className="divide-y divide-slate-800/80">
+      <section className="rounded-3xl border border-white/[0.08] bg-zinc-950 shadow-sm overflow-hidden">
+        <div className="divide-y divide-white/[0.06]">
           {visibleData.map((t) => {
             const hasReceipt = !!t.receiptImagePath;
             const receiptUrl = getReceiptImageUrl(t.receiptImagePath);
@@ -249,68 +254,65 @@ export default function TransactionHistory() {
               <div
                 key={t.id}
                 onClick={() => setSelectedTransaction(t)}
-                className="flex items-center justify-between gap-3 p-4 hover:bg-slate-800/40 cursor-pointer transition"
+                className="flex items-center justify-between gap-3 p-4 hover:bg-white/[0.03] cursor-pointer transition"
               >
                 {/* Left: Thumbnail or Category Icon */}
                 <div className="flex min-w-0 items-center gap-3">
                   {hasReceipt && receiptUrl ? (
-                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-indigo-400/40 bg-black">
+                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-white/20 bg-black">
                       <img
                         src={receiptUrl}
                         alt="Bill thumbnail"
                         className="h-full w-full object-cover"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-indigo-600 text-center text-[7px] font-black text-white leading-tight">
-                        SNAP
+                      <div className="absolute bottom-0 inset-x-0 bg-white text-black text-center text-[7px] font-black leading-tight">
+                        BILL
                       </div>
                     </div>
                   ) : t.source === TransactionSource.MoMo ? (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30 font-black text-xs">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
                       MoMo
                     </div>
                   ) : t.source === TransactionSource.Cake ? (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 font-black text-xs">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
                       Cake
                     </div>
                   ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
-                      <Receipt size={18} />
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-300 border border-white/10">
+                      <Receipt size={17} />
                     </div>
                   )}
 
                   {/* Middle Details */}
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-white">
+                    <p className="truncate text-xs font-semibold text-white">
                       {t.description || t.merchant || "Khoản chi tiêu"}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-400">
                       <span className="flex items-center gap-1">
                         <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
                       </span>
 
                       {/* Source Badge */}
                       {t.source === TransactionSource.MoMo && (
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
                           Ví MoMo
                         </span>
                       )}
                       {t.source === TransactionSource.Cake && (
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
                           Cake VPBank
                         </span>
                       )}
                       {t.source === TransactionSource.SnapReceipt && (
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          Hóa đơn
+                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
+                          Ảnh bill
                         </span>
                       )}
 
                       {t.categoryName && (
-                        <span
-                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-bold text-white"
-                          style={{ backgroundColor: t.categoryColor || "#3b82f6" }}
-                        >
-                          <Tag size={8} /> {t.categoryName}
+                        <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-medium text-zinc-300 bg-white/[0.06] border border-white/10">
+                          <Tag size={8} className="text-zinc-400" /> {t.categoryName}
                         </span>
                       )}
                     </div>
@@ -319,21 +321,21 @@ export default function TransactionHistory() {
 
                 {/* Right: Amount & Delete Button */}
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <span className="text-xs sm:text-sm font-black tracking-tight text-rose-400">
+                  <span className="text-xs sm:text-sm font-black tracking-tight text-white">
                     -{formatCurrency(t.amount)}
                   </span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm("Xóa giao dịch này?")) {
+                      if (confirm("Xóa giao dịch này khỏi sổ chi tiêu?")) {
                         handleDelete(t.id);
                       }
                     }}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition"
+                    className="p-1.5 rounded-lg text-zinc-600 hover:text-rose-400 hover:bg-white/[0.06] transition"
                     title="Xóa giao dịch"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
@@ -342,21 +344,21 @@ export default function TransactionHistory() {
 
           {!isLoading && visibleData.length === 0 && (
             <div className="px-5 py-14 text-center">
-              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-400">
-                <Search size={20} />
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-400 border border-white/10">
+                <Search size={18} />
               </div>
               <p className="font-bold text-xs text-white">Không tìm thấy giao dịch nào</p>
-              <p className="mt-1 text-[11px] text-slate-500">Thử đổi từ khóa hoặc bộ lọc khác.</p>
+              <p className="mt-1 text-[11px] text-zinc-500">Thử đổi từ khóa hoặc bộ lọc khác.</p>
             </div>
           )}
         </div>
 
         {visibleData.length < filteredData.length && (
-          <div className="border-t border-slate-800 p-3">
+          <div className="border-t border-white/[0.06] p-3">
             <button
               type="button"
               onClick={() => setPage((p) => p + 1)}
-              className="w-full py-2.5 rounded-xl bg-slate-800/80 text-xs font-bold text-slate-300 hover:bg-slate-800 transition"
+              className="w-full py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition active:scale-95"
             >
               Xem thêm giao dịch
             </button>

@@ -25,26 +25,26 @@ export default function PolaroidDetailModal({ transaction, isOpen, onClose, onDe
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-2xl p-4 overflow-y-auto">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-[36px] p-5 text-white shadow-2xl overflow-hidden my-auto"
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          transition={{ type: "spring", stiffness: 350, damping: 28 }}
+          className="relative w-full max-w-sm bg-zinc-950 border border-white/10 rounded-[32px] p-5 text-white shadow-2xl overflow-hidden my-auto"
         >
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition"
+            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 text-zinc-400 hover:text-white hover:bg-white/15 transition active:scale-95"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
 
           {/* Polaroid Frame */}
-          <div className="bg-slate-950 p-3 pb-6 rounded-[28px] border border-slate-800 shadow-xl space-y-4">
+          <div className="bg-black p-3 pb-5 rounded-[24px] border border-white/[0.08] shadow-inner space-y-4">
             {/* Photo / Receipt Image */}
-            <div className="relative w-full aspect-square rounded-[20px] overflow-hidden bg-slate-900 flex items-center justify-center">
+            <div className="relative w-full aspect-square rounded-[18px] overflow-hidden bg-zinc-900 flex items-center justify-center">
               {imageUrl ? (
                 <img
                   src={imageUrl}
@@ -52,51 +52,50 @@ export default function PolaroidDetailModal({ transaction, isOpen, onClose, onDe
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="flex flex-col items-center gap-2 text-slate-500">
-                  <ImageIcon size={48} />
-                  <span className="text-xs font-semibold">Giao dịch không có ảnh bill</span>
+                <div className="flex flex-col items-center gap-2 text-zinc-600">
+                  <ImageIcon size={44} />
+                  <span className="text-xs font-medium">Giao dịch không có ảnh bill</span>
                 </div>
               )}
 
               {/* Tag overlay */}
               {transaction.categoryName && (
                 <div
-                  className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md shadow-lg flex items-center gap-1.5"
-                  style={{ backgroundColor: `${transaction.categoryColor || "#3b82f6"}cc` }}
+                  className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold text-white bg-black/70 backdrop-blur-md border border-white/10 shadow-lg flex items-center gap-1.5"
                 >
-                  <Tag size={12} /> {transaction.categoryName}
+                  <Tag size={11} className="text-zinc-400" /> {transaction.categoryName}
                 </div>
               )}
             </div>
 
             {/* Bottom Polaroid Details */}
-            <div className="px-2 space-y-2">
+            <div className="px-1.5 space-y-1.5">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-2xl font-black text-rose-400">
+                <span className="text-2xl font-black text-white tracking-tight">
                   -{formattedAmount}đ
                 </span>
-                <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                <span className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
                   <Calendar size={12} /> {formattedDate}
                 </span>
               </div>
 
-              <p className="text-sm font-bold text-slate-200">
+              <p className="text-xs font-medium text-zinc-300">
                 {transaction.description || transaction.merchant || "Giao dịch chi tiêu"}
               </p>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="mt-4 flex items-center justify-between gap-3 px-1">
+          <div className="mt-4 flex items-center justify-between gap-2.5 px-0.5">
             {imageUrl && (
               <a
                 href={imageUrl}
                 target="_blank"
                 rel="noreferrer"
                 download
-                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-white/[0.08] hover:bg-white/15 border border-white/10 text-xs font-semibold text-white transition active:scale-95"
               >
-                <Download size={14} /> Tải ảnh
+                <Download size={13} /> Tải ảnh
               </a>
             )}
 
@@ -109,9 +108,9 @@ export default function PolaroidDetailModal({ transaction, isOpen, onClose, onDe
                     onClose();
                   }
                 }}
-                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-xs font-bold text-rose-400 transition"
+                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 text-xs font-semibold text-rose-400 transition active:scale-95"
               >
-                <Trash2 size={14} /> Xóa giao dịch
+                <Trash2 size={13} /> Xóa
               </button>
             )}
           </div>

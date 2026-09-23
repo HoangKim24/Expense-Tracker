@@ -276,12 +276,12 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         receiptImagePath: receiptPath,
       });
 
-      // Hiệu ứng pháo hoa rực rỡ
+      // Hiệu ứng pháo hoa ánh bạc sang trọng
       confetti({
-        particleCount: 120,
-        spread: 80,
+        particleCount: 80,
+        spread: 70,
         origin: { y: 0.65 },
-        colors: ["#facc15", "#38bdf8", "#34d399", "#f43f5e"],
+        colors: ["#ffffff", "#f4f4f5", "#e4e4e7", "#a1a1aa"],
       });
 
       toast.success("Đã lưu hóa đơn thành công!", {
@@ -394,13 +394,13 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                     <div className="flex flex-col gap-2 w-full max-w-[240px] mx-auto pt-1">
                       <label
                         htmlFor="locket-native-camera-input"
-                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 font-black text-xs text-black shadow-xl active:scale-95 transition"
+                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-white hover:bg-zinc-200 font-bold text-xs text-black shadow-lg active:scale-95 transition"
                       >
                         <Camera size={16} /> Mở Máy Ảnh iPhone (Cách 2)
                       </label>
                       <label
                         htmlFor="locket-gallery-input"
-                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 shadow-md active:scale-95 transition"
+                        className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-zinc-900 border border-zinc-800 font-semibold text-xs text-zinc-300 shadow-md active:scale-95 transition"
                       >
                         <ImageIcon size={16} /> Chọn ảnh từ thư viện
                       </label>
@@ -423,7 +423,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
               </>
             ) : (
-              /* CAPTURED PHOTO WITH INSTAGRAM & LOCKET OVERLAYS */
+              /* CAPTURED PHOTO WITH OVERLAYS */
               <div className="relative w-full h-full">
                 {/* Photo */}
                 <img
@@ -435,7 +435,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 {/* Gradient shade overlays for contrast */}
                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/50 via-transparent to-black/70" />
 
-                {/* 1. INSTAGRAM-STYLE FLOATING AMOUNT STICKER */}
+                {/* 1. FLOATING AMOUNT STICKER */}
                 <div className="absolute top-4 inset-x-3 flex flex-col items-center z-10">
                   <motion.div
                     initial={{ scale: 0.85, opacity: 0 }}
@@ -454,10 +454,10 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                           const val = e.target.value.replace(/\D/g, "");
                           setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
                         }}
-                        className="bg-transparent text-2xl font-black text-white text-center focus:outline-none w-full placeholder-white/40 tracking-tight"
+                        className="bg-transparent text-2xl font-bold text-white text-center focus:outline-none w-full placeholder-white/40 tracking-tight"
                       />
                     </div>
-                    <span className="text-xs font-black text-amber-400">VNĐ</span>
+                    <span className="text-xs font-bold text-zinc-400">VNĐ</span>
                   </motion.div>
 
                   {/* Floating quick increment chips */}
@@ -467,7 +467,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                         key={add}
                         type="button"
                         onClick={() => handleAddQuickAmount(add)}
-                        className="shrink-0 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[11px] font-bold text-white hover:bg-white/20 active:scale-95 transition shadow-sm"
+                        className="shrink-0 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/20 text-[11px] font-semibold text-white hover:bg-white/20 active:scale-95 transition shadow-sm"
                       >
                         +{add >= 1000 ? `${add / 1000}k` : add}
                       </button>
@@ -477,14 +477,14 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
 
                 {/* 2. LOCKET-STYLE BOTTOM CAPTION CAPSULE */}
                 <div className="absolute bottom-4 inset-x-3 z-10">
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/75 backdrop-blur-xl border border-white/30 shadow-2xl">
-                    <Sparkles size={15} className="text-amber-400 shrink-0" />
+                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-black/80 backdrop-blur-xl border border-white/30 shadow-2xl">
+                    <Sparkles size={15} className="text-zinc-400 shrink-0" />
                     <input
                       type="text"
                       placeholder="Gửi một ghi chú... (VD: Cà phê Highlands)"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-white/50 focus:outline-none font-semibold"
+                      className="flex-1 bg-transparent text-xs sm:text-sm text-white placeholder-white/50 focus:outline-none font-medium"
                     />
                   </div>
                 </div>
@@ -528,11 +528,11 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
               </button>
             </div>
           ) : (
-            /* POST-CAPTURE ACTION BAR (CATEGORY PILLS & LOCKET SEND BUTTON) */
+            /* POST-CAPTURE ACTION BAR (CATEGORY PILLS & MINIMALIST SEND BUTTON) */
             <div className="w-full pt-2 pb-1 space-y-2.5">
               {/* Category Pills (Horizontal Scroll) */}
               <div className="space-y-1">
-                <div className="flex items-center gap-1 px-1 text-[11px] font-bold text-slate-400">
+                <div className="flex items-center gap-1 px-1 text-[11px] font-semibold text-zinc-400">
                   <Tag size={11} /> Chọn danh mục:
                 </div>
                 <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
@@ -543,17 +543,15 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                         key={cat.id}
                         type="button"
                         onClick={() => setSelectedCategoryId(cat.id)}
-                        style={{
-                          borderColor: isSelected ? cat.color : "rgba(255,255,255,0.15)",
-                          backgroundColor: isSelected ? `${cat.color}33` : "rgba(255,255,255,0.08)",
-                        }}
-                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition border active:scale-95 ${
-                          isSelected ? "text-white ring-1 ring-white/40" : "text-slate-300 hover:bg-white/15"
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border active:scale-95 ${
+                          isSelected
+                            ? "bg-white text-black font-bold border-white shadow-sm"
+                            : "bg-black/70 border-white/15 text-zinc-300 hover:bg-white/10"
                         }`}
                       >
                         <span
                           className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: cat.color || "#38bdf8" }}
+                          style={{ backgroundColor: cat.color || "#a1a1aa" }}
                         />
                         {cat.name}
                       </button>
@@ -562,21 +560,21 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 </div>
               </div>
 
-              {/* Nút Lưu Hóa Đơn & Gửi Vào Sổ Chi Tiêu */}
+              {/* Nút Lưu Hóa Đơn — Minimalist Solid White */}
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-amber-300 hover:to-yellow-300 active:scale-[0.98] font-black text-slate-950 text-sm shadow-[0_0_30px_rgba(251,191,36,0.45)] transition flex items-center justify-center gap-2.5 disabled:opacity-50"
+                className="w-full py-4 rounded-full bg-white hover:bg-zinc-100 active:scale-[0.98] font-bold text-black text-sm shadow-[0_4px_25px_rgba(255,255,255,0.25)] transition flex items-center justify-center gap-2.5 disabled:opacity-40"
                 title="Lưu hóa đơn vào sổ chi tiêu"
               >
                 {isSubmitting ? (
                   <>
-                    <RefreshCw size={19} className="animate-spin" /> Đang lưu hóa đơn...
+                    <RefreshCw size={18} className="animate-spin" /> Đang lưu hóa đơn...
                   </>
                 ) : (
                   <>
-                    <Check size={19} strokeWidth={2.8} /> Lưu Hóa Đơn (Vào Sổ)
+                    <Check size={18} strokeWidth={2.8} /> Lưu Hóa Đơn (Vào Sổ)
                   </>
                 )}
               </button>

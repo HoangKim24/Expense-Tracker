@@ -56,9 +56,6 @@ export default defineConfig({
           if (id.includes('node_modules/framer-motion')) {
             return 'vendor-motion';
           }
-          if (id.includes('node_modules/recharts')) {
-            return 'vendor-charts';
-          }
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-icons';
           }

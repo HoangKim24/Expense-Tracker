@@ -27,8 +27,13 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
 
     public async Task<DashboardMetricsDto> Handle(GetTransactionDashboardQuery request, CancellationToken cancellationToken)
     {
-        var startDate = DateTime.SpecifyKind(new DateTime(request.Year, request.Month, 1, 0, 0, 0), DateTimeKind.Utc);
-        var endDate = startDate.AddMonths(1);
+        // Tính toán khoảng thời gian theo chuẩn múi giờ Việt Nam (UTC+7)
+        var vietnamOffset = TimeSpan.FromHours(7);
+        var startLocal = new DateTimeOffset(request.Year, request.Month, 1, 0, 0, 0, vietnamOffset);
+        var endLocal = startLocal.AddMonths(1);
+
+        var startDate = startLocal.UtcDateTime;
+        var endDate = endLocal.UtcDateTime;
 
         // Sử dụng AsNoTracking để tối ưu hiệu năng đọc (đã được bọc ngầm trong GetAsync của Repository implementation)
         var transactions = await _transactionRepo.GetAsync(

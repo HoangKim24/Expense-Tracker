@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/api/:match*",
+      "destination": "https://expense-tracker-573b.onrender.com/api/:match*"
+    },
+    {
+      "source": "/uploads/:match*",
+      "destination": "https://expense-tracker-573b.onrender.com/uploads/:match*"
+    },
+    {
+      "source": "/health",
+      "destination": "https://expense-tracker-573b.onrender.com/health"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

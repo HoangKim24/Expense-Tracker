@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const DEFAULT_PROD_API = "https://expense-tracker-573b.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? DEFAULT_PROD_API : "");
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

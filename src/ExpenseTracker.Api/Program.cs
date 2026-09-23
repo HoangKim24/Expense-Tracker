@@ -79,6 +79,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+
+// Ensure static files directory exists before serving
+var webRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var uploadsDir = Path.Combine(webRoot, "uploads");
+if (!Directory.Exists(uploadsDir))
+{
+    Directory.CreateDirectory(uploadsDir);
+}
+
 app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
@@ -115,6 +124,29 @@ using (var scope = app.Services.CreateScope())
                         await db.Database.ExecuteSqlRawAsync(sql);
                     }
                     app.Logger.LogInformation("Tables created successfully on Supabase.");
+                }
+
+                // Kích hoạt Row Level Security (RLS) để giải quyết cảnh báo bảo mật Supabase
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(@"
+                        ALTER TABLE IF EXISTS ""Categories"" ENABLE ROW LEVEL SECURITY;
+                        ALTER TABLE IF EXISTS ""Transactions"" ENABLE ROW LEVEL SECURITY;
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_policies WHERE tablename = 'Categories' AND policyname = 'Allow public read on Categories'
+                            ) THEN
+                                CREATE POLICY ""Allow public read on Categories"" ON ""Categories"" FOR SELECT USING (true);
+                            END IF;
+                        END
+                        $$;
+                    ");
+                    app.Logger.LogInformation("RLS configured on Supabase tables.");
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogWarning(ex, "Could not automatically configure RLS policies on Supabase.");
                 }
             }
             else

@@ -15,10 +15,14 @@ public class GetTransactionDashboardQuery : IRequest<DashboardMetricsDto>
 public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactionDashboardQuery, DashboardMetricsDto>
 {
     private readonly IRepository<Transaction> _transactionRepo;
+    private readonly IRepository<Category> _categoryRepo;
 
-    public GetTransactionDashboardQueryHandler(IRepository<Transaction> transactionRepo)
+    public GetTransactionDashboardQueryHandler(
+        IRepository<Transaction> transactionRepo,
+        IRepository<Category> categoryRepo)
     {
         _transactionRepo = transactionRepo;
+        _categoryRepo = categoryRepo;
     }
 
     public async Task<DashboardMetricsDto> Handle(GetTransactionDashboardQuery request, CancellationToken cancellationToken)
@@ -30,12 +34,21 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
         var transactions = await _transactionRepo.GetAsync(
             t => t.TransactionDate >= startDate && t.TransactionDate < endDate,
             cancellationToken);
+        var categories = await _categoryRepo.GetAllAsync(cancellationToken);
+        var categoryMap = categories.ToDictionary(c => c.Id);
 
         var totalExpense = transactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
 
         var expenseCategories = transactions
             .Where(t => t.Type == TransactionType.Expense)
-            .GroupBy(t => t.Category?.Name ?? "Khác")
+            .GroupBy(t =>
+            {
+                if (t.CategoryId.HasValue && categoryMap.TryGetValue(t.CategoryId.Value, out var cat))
+                {
+                    return cat.Name;
+                }
+                return t.Category?.Name ?? "Khác";
+            })
             .Select(g => new CategoryBreakdownDto
             {
                 CategoryName = g.Key,

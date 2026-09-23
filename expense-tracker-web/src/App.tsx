@@ -1,24 +1,16 @@
-import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import MainLayout from "./components/MainLayout";
+import Dashboard from "./pages/Dashboard";
+import ReceiptSnaps from "./pages/ReceiptSnaps";
+import Analytics from "./pages/Analytics";
+import TransactionHistory from "./pages/TransactionHistory";
 
-// Tải động (Lazy-loading) giúp giảm dung lượng tải ban đầu từ 550KB xuống còn ~80KB
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const ReceiptSnaps = lazy(() => import("./pages/ReceiptSnaps"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
-
-// Hiệu ứng tải trang mượt mà
-function PageLoadingFallback() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-      <div className="w-7 h-7 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-      <span className="text-xs font-medium text-zinc-400 tracking-wide">
-        Đang tải...
-      </span>
-    </div>
-  );
+// Tự động hồi phục khi có bản cập nhật mới trên Vercel
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", () => {
+    window.location.reload();
+  });
 }
 
 function App() {
@@ -35,16 +27,14 @@ function App() {
         }}
       />
       <Router>
-        <Suspense fallback={<PageLoadingFallback />}>
-          <Routes>
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="snaps" element={<ReceiptSnaps />} />
-              <Route path="history" element={<TransactionHistory />} />
-              <Route path="analytics" element={<Analytics />} />
-            </Route>
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="snaps" element={<ReceiptSnaps />} />
+            <Route path="history" element={<TransactionHistory />} />
+            <Route path="analytics" element={<Analytics />} />
+          </Route>
+        </Routes>
       </Router>
     </>
   );

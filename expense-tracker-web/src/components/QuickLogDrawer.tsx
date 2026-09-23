@@ -174,12 +174,11 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-md">
-        <div onClick={onClose} className="absolute inset-0" />
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-md">
+          <div onClick={onClose} className="absolute inset-0" />
 
         <motion.div
           initial={{ y: "100%" }}
@@ -337,6 +336,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
           </form>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }

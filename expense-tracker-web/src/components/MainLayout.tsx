@@ -1,13 +1,34 @@
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { cn } from "../lib/utils";
+import QuickLogDrawer from "./QuickLogDrawer";
 
 export default function MainLayout() {
   const location = useLocation();
+  const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
 
+  // Lắng nghe sự kiện toàn cục để mở quick log
+  useEffect(() => {
+    const handleOpen = () => setIsQuickLogOpen(true);
+    window.addEventListener("open-quick-log", handleOpen);
+    return () => window.removeEventListener("open-quick-log", handleOpen);
+  }, []);
 
-  const navItems = [
+  // Hỗ trợ PWA shortcut ?quick=true
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("quick") === "true") {
+      setIsQuickLogOpen(true);
+    }
+  }, [location.search]);
+
+  const leftNavItems = [
     { name: "Tổng quan", path: "/", icon: "dashboard" },
     { name: "Hóa đơn", path: "/snaps", icon: "photo_camera" },
+  ];
+
+  const rightNavItems = [
     { name: "Lịch sử", path: "/history", icon: "receipt_long" },
     { name: "Phân tích", path: "/analytics", icon: "insights" },
   ];
@@ -34,10 +55,11 @@ export default function MainLayout() {
         <Outlet />
       </main>
 
-      {/* Bottom Navigation Bar - Minimalist Monochrome */}
+      {/* Bottom Navigation Bar with Center Quick Add Button */}
       <nav className="fixed bottom-0 inset-x-0 w-full bg-black/85 backdrop-blur-2xl border-t border-white/[0.08] z-40 pb-safe">
-        <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-2">
-          {navItems.map((item) => {
+        <div className="max-w-2xl mx-auto flex items-center justify-around h-16 px-1 sm:px-3">
+          {/* 2 tabs bên trái */}
+          {leftNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
@@ -49,26 +71,67 @@ export default function MainLayout() {
                   }
                 }}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1.5 transition-all duration-150 rounded-2xl active:scale-95",
-                  isActive
-                    ? "text-white font-bold"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  "flex-1 flex flex-col items-center justify-center py-1 transition-all duration-150 rounded-2xl active:scale-95",
+                  isActive ? "text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
                 )}
               >
                 <div className={cn(
                   "p-1 rounded-xl transition-colors",
                   isActive ? "bg-white/10 text-white" : "text-zinc-500"
                 )}>
-                  <span className="material-symbols-outlined text-[22px] block leading-none">
+                  <span className="material-symbols-outlined text-[20px] block leading-none">
                     {item.icon}
                   </span>
                 </div>
-                <span className="text-[10.5px] tracking-tight leading-none mt-1">{item.name}</span>
+                <span className="text-[10px] tracking-tight leading-none mt-0.5">{item.name}</span>
+              </Link>
+            );
+          })}
+
+          {/* Phím Nổi Toàn Cục Trung Tâm (Universal Quick Add Button) */}
+          <div className="flex-shrink-0 px-1">
+            <button
+              type="button"
+              onClick={() => setIsQuickLogOpen(true)}
+              className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-[0_0_24px_rgba(255,255,255,0.35)] active:scale-90 transition-transform duration-150 hover:bg-zinc-200"
+              title="Ghi sổ nhanh"
+            >
+              <Plus size={24} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* 2 tabs bên phải */}
+          {rightNavItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center py-1 transition-all duration-150 rounded-2xl active:scale-95",
+                  isActive ? "text-white font-bold" : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                <div className={cn(
+                  "p-1 rounded-xl transition-colors",
+                  isActive ? "bg-white/10 text-white" : "text-zinc-500"
+                )}>
+                  <span className="material-symbols-outlined text-[20px] block leading-none">
+                    {item.icon}
+                  </span>
+                </div>
+                <span className="text-[10px] tracking-tight leading-none mt-0.5">{item.name}</span>
               </Link>
             );
           })}
         </div>
       </nav>
+
+      {/* Universal Quick Log Drawer */}
+      <QuickLogDrawer
+        isOpen={isQuickLogOpen}
+        onClose={() => setIsQuickLogOpen(false)}
+      />
     </div>
   );
 }

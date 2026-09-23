@@ -5,9 +5,10 @@ import {
   PlusCircle, 
   Tag, 
   ChevronRight, 
-  Camera,
-  CheckCircle2,
-  RefreshCw
+  Camera, 
+  CheckCircle2, 
+  RefreshCw, 
+  Clipboard 
 } from "lucide-react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -28,6 +29,8 @@ import {
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
+import QuickPresetsBar from "../components/QuickPresetsBar";
+import { parseTransactionText, detectCategoryFromText, matchCategoryId } from "../lib/smartParser";
 
 type DayTotal = { label: string; amount: number; isToday: boolean };
 
@@ -161,6 +164,54 @@ export default function Dashboard() {
     setAmount(new Intl.NumberFormat("vi-VN").format(current + extra));
   };
 
+  // Tự động đoán danh mục khi gõ ghi chú
+  const handleNoteChange = (val: string) => {
+    setNote(val);
+    const guessedName = detectCategoryFromText(val);
+    if (guessedName) {
+      const matched = matchCategoryId(guessedName, categories);
+      if (matched) setSelectedCategoryId(matched);
+    }
+  };
+
+  // Dán & Tự động bóc tách thông báo MoMo / Ngân hàng
+  const handleSmartPaste = async () => {
+    let clipboardText = "";
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        clipboardText = await navigator.clipboard.readText();
+      }
+    } catch {}
+
+    if (!clipboardText) {
+      const manual = window.prompt("Dán nội dung thông báo giao dịch MoMo hoặc Ngân hàng:");
+      if (manual) clipboardText = manual;
+    }
+
+    if (!clipboardText || !clipboardText.trim()) {
+      toast.info("Không có nội dung văn bản để phân tích");
+      return;
+    }
+
+    const parsed = parseTransactionText(clipboardText);
+    if (parsed.amount) {
+      setAmount(new Intl.NumberFormat("vi-VN").format(parsed.amount));
+    }
+    if (parsed.description) {
+      setNote(parsed.description);
+    }
+    if (parsed.detectedCategoryName) {
+      const matched = matchCategoryId(parsed.detectedCategoryName, categories);
+      if (matched) setSelectedCategoryId(matched);
+    }
+
+    if (parsed.amount) {
+      toast.success("Đã bóc tách thông báo!", {
+        description: `${new Intl.NumberFormat("vi-VN").format(parsed.amount)}đ • ${parsed.description || "Giao dịch"}`,
+      });
+    }
+  };
+
   // Submit Inline Transaction
   const handleSaveTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,7 +302,10 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 2. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
+      {/* 2. MẪU CHI TIÊU THƯỜNG GẶP 1-CHẠM (0.5 GIÂY) */}
+      <QuickPresetsBar categories={categories} onTransactionCreated={loadData} />
+
+      {/* 3. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
       <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -260,6 +314,17 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Smart Paste Button - Dán thông báo MoMo/Bank */}
+            <button
+              type="button"
+              onClick={handleSmartPaste}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+              title="Dán thông báo MoMo / Bank để tự động điền"
+            >
+              <Clipboard size={13} className="text-zinc-300" />
+              <span>Dán</span>
+            </button>
+
             {/* MoMo & Cake Gmail Sync Button - Minimalist Dark Glass */}
             <button
               type="button"
@@ -354,9 +419,9 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Ghi chú (VD: Cơm trưa, Grab, Tiền điện...)"
+              placeholder="Ghi chú (Gõ bún, cà phê, grab... để tự đoán danh mục)"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => handleNoteChange(e.target.value)}
               className="flex-1 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
             />
             <button

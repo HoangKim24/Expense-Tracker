@@ -21,12 +21,28 @@ export default defineConfig({
         name: 'T-Expense',
         short_name: 'T-Expense',
         description: 'Personal expense tracker',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#000000',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
         scope: '/',
+        shortcuts: [
+          {
+            name: 'Ghi sổ nhanh',
+            short_name: 'Ghi sổ',
+            description: 'Mở nhanh form nhập khoản chi',
+            url: '/?quick=true',
+            icons: [{ src: 'app-icon.svg', sizes: 'any' }]
+          },
+          {
+            name: 'Chụp hóa đơn',
+            short_name: 'Chụp bill',
+            description: 'Mở camera chụp hóa đơn',
+            url: '/snaps',
+            icons: [{ src: 'app-icon.svg', sizes: 'any' }]
+          }
+        ],
         icons: [
           {
             src: 'app-icon.svg',

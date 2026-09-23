@@ -51,7 +51,7 @@ export default function MainLayout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-2xl mx-auto pb-24">
+      <main className="flex-1 w-full max-w-2xl mx-auto pb-32">
         <Outlet />
       </main>
 

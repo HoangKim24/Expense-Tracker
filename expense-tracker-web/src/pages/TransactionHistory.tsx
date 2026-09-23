@@ -13,13 +13,16 @@ import {
   type TransactionDto 
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
+import { isToday, isThisWeek, isThisMonth, groupTransactionsByDate } from "../lib/dateUtils";
 
 type FilterMode = "all" | "receipt" | "momo" | "cake" | "manual";
+type PeriodFilter = "all" | "today" | "week" | "month";
 
 export default function TransactionHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
@@ -98,22 +101,47 @@ export default function TransactionHistory() {
 
   const filteredData = useMemo(() => {
     return transactions.filter((t) => {
+      // 1. Lọc theo mốc thời gian (Hôm nay / Tuần này / Tháng này / Tất cả)
+      if (periodFilter === "today" && !isToday(t.transactionDate)) return false;
+      if (periodFilter === "week" && !isThisWeek(t.transactionDate)) return false;
+      if (periodFilter === "month" && !isThisMonth(t.transactionDate)) return false;
+
+      // 2. Lọc theo tìm kiếm
       const desc = (t.description || t.merchant || "").toLowerCase();
       const cat = (t.categoryName || "").toLowerCase();
       const matchesSearch = desc.includes(searchTerm.toLowerCase()) || cat.includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
 
+      // 3. Lọc theo nguồn
       if (filterMode === "receipt") return !!t.receiptImagePath || t.source === TransactionSource.SnapReceipt;
       if (filterMode === "momo") return t.source === TransactionSource.MoMo;
       if (filterMode === "cake") return t.source === TransactionSource.Cake;
       if (filterMode === "manual") return t.source === TransactionSource.Manual;
       return true;
     });
-  }, [transactions, searchTerm, filterMode]);
+  }, [transactions, searchTerm, filterMode, periodFilter]);
 
   const visibleData = filteredData.slice(0, page * 15);
   const totalExpense = filteredData.reduce((sum, item) => sum + item.amount, 0);
+
+  const groupedDays = useMemo(() => {
+    return groupTransactionsByDate(visibleData);
+  }, [visibleData]);
+
+  const summaryTitle = useMemo(() => {
+    if (periodFilter === "today") return "Tổng Chi Tiêu Hôm Nay";
+    if (periodFilter === "week") return "Tổng Chi Tiêu Tuần Này";
+    if (periodFilter === "month") return "Tổng Chi Tiêu Tháng Này";
+    return "Tổng Chi Tiêu Đã Lọc";
+  }, [periodFilter]);
+
+  const periodFilters: Array<{ value: PeriodFilter; label: string }> = [
+    { value: "all", label: "Tất cả" },
+    { value: "today", label: "Hôm nay" },
+    { value: "week", label: "Tuần này" },
+    { value: "month", label: "Tháng này" },
+  ];
 
   const filters: Array<{ value: FilterMode; label: string; icon?: typeof Camera | typeof RefreshCw | typeof Smartphone }> = [
     { value: "all", label: "Tất cả chi tiêu" },
@@ -186,7 +214,7 @@ export default function TransactionHistory() {
       <section className="rounded-2xl border border-white/[0.08] bg-zinc-950 p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
-            Tổng Chi Tiêu Đã Lọc
+            {summaryTitle}
           </span>
           <span className="text-2xl font-black text-white tracking-tight mt-0.5 block">
             {formatCurrency(totalExpense)}
@@ -199,6 +227,32 @@ export default function TransactionHistory() {
 
       {/* Search & Filter Chips */}
       <section className="space-y-3">
+        {/* Period Filter (Hôm nay / Tuần này / Tháng này / Tất cả) */}
+        <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
+          {periodFilters.map((p) => {
+            const isSelected = periodFilter === p.value;
+            return (
+              <button
+                type="button"
+                key={p.value}
+                onClick={() => {
+                  setPeriodFilter(p.value);
+                  setPage(1);
+                }}
+                className={cn(
+                  "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                  isSelected
+                    ? "bg-white text-black shadow-sm font-bold"
+                    : "text-zinc-400 hover:text-white"
+                )}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search Bar */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
             <Search size={15} className="text-zinc-500" />
@@ -211,11 +265,11 @@ export default function TransactionHistory() {
               setSearchTerm(e.target.value);
               setPage(1);
             }}
-            className="w-full min-h-[42px] rounded-2xl border border-white/[0.08] bg-zinc-950 py-2.5 pl-9 pr-4 text-xs font-medium text-white outline-none transition focus:border-white/30 placeholder-zinc-600"
+            className="w-full min-h-[42px] rounded-2xl border border-white/[0.08] bg-zinc-950 py-2.5 pl-9 pr-4 text-base sm:text-xs font-medium text-white outline-none transition focus:border-white/30 placeholder-zinc-600"
           />
         </div>
 
-        {/* Filter chips - Segmented Controls */}
+        {/* Source Filter chips - Segmented Controls */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           {filters.map((filter) => {
             const Icon = filter.icon;
@@ -243,115 +297,133 @@ export default function TransactionHistory() {
         </div>
       </section>
 
-      {/* Transactions List */}
+      {/* Transactions List Grouped by Day */}
       <section className="rounded-3xl border border-white/[0.08] bg-zinc-950 shadow-sm overflow-hidden">
-        <div className="divide-y divide-white/[0.06]">
-          {visibleData.map((t) => {
-            const hasReceipt = !!t.receiptImagePath;
-            const receiptUrl = getReceiptImageUrl(t.receiptImagePath);
-
-            return (
-              <div
-                key={t.id}
-                onClick={() => setSelectedTransaction(t)}
-                className="flex items-center justify-between gap-3 p-4 hover:bg-white/[0.03] cursor-pointer transition"
-              >
-                {/* Left: Thumbnail or Category Icon */}
-                <div className="flex min-w-0 items-center gap-3">
-                  {hasReceipt && receiptUrl ? (
-                    <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-white/20 bg-black">
-                      <img
-                        src={receiptUrl}
-                        alt="Bill thumbnail"
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute bottom-0 inset-x-0 bg-white text-black text-center text-[7px] font-black leading-tight">
-                        BILL
-                      </div>
-                    </div>
-                  ) : t.source === TransactionSource.MoMo ? (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
-                      MoMo
-                    </div>
-                  ) : t.source === TransactionSource.Cake ? (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
-                      Cake
-                    </div>
-                  ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-300 border border-white/10">
-                      <Receipt size={17} />
-                    </div>
-                  )}
-
-                  {/* Middle Details */}
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-white">
-                      {t.description || t.merchant || "Khoản chi tiêu"}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-400">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
-                      </span>
-
-                      {/* Source Badge */}
-                      {t.source === TransactionSource.MoMo && (
-                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
-                          Ví MoMo
-                        </span>
-                      )}
-                      {t.source === TransactionSource.Cake && (
-                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
-                          Cake VPBank
-                        </span>
-                      )}
-                      {t.source === TransactionSource.SnapReceipt && (
-                        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
-                          Ảnh bill
-                        </span>
-                      )}
-
-                      {t.categoryName && (
-                        <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-medium text-zinc-300 bg-white/[0.06] border border-white/10">
-                          <Tag size={8} className="text-zinc-400" /> {t.categoryName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Amount & Delete Button */}
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <span className="text-xs sm:text-sm font-black tracking-tight text-white">
-                    -{formatCurrency(t.amount)}
+        {groupedDays.length > 0 ? (
+          <div>
+            {groupedDays.map((group) => (
+              <div key={group.dateKey} className="border-b border-white/[0.06] last:border-b-0">
+                {/* Sticky Daily Sub-Header */}
+                <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-zinc-900/90 backdrop-blur border-b border-white/[0.06]">
+                  <span className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5">
+                    <Calendar size={12} className="text-zinc-400" />
+                    {group.dateLabel}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Xóa giao dịch này khỏi sổ chi tiêu?")) {
-                        handleDelete(t.id);
-                      }
-                    }}
-                    className="p-1.5 rounded-lg text-zinc-600 hover:text-rose-400 hover:bg-white/[0.06] transition"
-                    title="Xóa giao dịch"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <span className="text-[11px] font-medium text-zinc-400">
+                    Tổng ngày: <span className="text-white font-bold">-{formatCurrency(group.totalExpense)}</span>
+                  </span>
+                </div>
+
+                {/* Items in this Day */}
+                <div className="divide-y divide-white/[0.04]">
+                  {group.transactions.map((t) => {
+                    const hasReceipt = !!t.receiptImagePath;
+                    const receiptUrl = getReceiptImageUrl(t.receiptImagePath);
+
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => setSelectedTransaction(t)}
+                        className="flex items-center justify-between gap-3 p-4 hover:bg-white/[0.03] cursor-pointer transition"
+                      >
+                        {/* Left: Thumbnail or Category Icon */}
+                        <div className="flex min-w-0 items-center gap-3">
+                          {hasReceipt && receiptUrl ? (
+                            <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-white/20 bg-black">
+                              <img
+                                src={receiptUrl}
+                                alt="Bill thumbnail"
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute bottom-0 inset-x-0 bg-white text-black text-center text-[7px] font-black leading-tight">
+                                BILL
+                              </div>
+                            </div>
+                          ) : t.source === TransactionSource.MoMo ? (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
+                              MoMo
+                            </div>
+                          ) : t.source === TransactionSource.Cake ? (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white border border-white/10 font-bold text-[11px]">
+                              Cake
+                            </div>
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-300 border border-white/10">
+                              <Receipt size={17} />
+                            </div>
+                          )}
+
+                          {/* Middle Details */}
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-white">
+                              {t.description || t.merchant || "Khoản chi tiêu"}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={10} /> {new Date(t.transactionDate).toLocaleDateString("vi-VN")}
+                              </span>
+
+                              {/* Source Badge */}
+                              {t.source === TransactionSource.MoMo && (
+                                <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
+                                  Ví MoMo
+                                </span>
+                              )}
+                              {t.source === TransactionSource.Cake && (
+                                <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
+                                  Cake VPBank
+                                </span>
+                              )}
+                              {t.source === TransactionSource.SnapReceipt && (
+                                <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium bg-white/[0.06] text-zinc-300 border border-white/10">
+                                  Ảnh bill
+                                </span>
+                              )}
+
+                              {t.categoryName && (
+                                <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-medium text-zinc-300 bg-white/[0.06] border border-white/10">
+                                  <Tag size={8} className="text-zinc-400" /> {t.categoryName}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Amount & Delete Button */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="text-xs sm:text-sm font-black tracking-tight text-white">
+                            -{formatCurrency(t.amount)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Xóa giao dịch này khỏi sổ chi tiêu?")) {
+                                handleDelete(t.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-zinc-600 hover:text-rose-400 hover:bg-white/[0.06] transition"
+                            title="Xóa giao dịch"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
-
-          {!isLoading && visibleData.length === 0 && (
-            <div className="px-5 py-14 text-center">
-              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-400 border border-white/10">
-                <Search size={18} />
-              </div>
-              <p className="font-bold text-xs text-white">Không tìm thấy giao dịch nào</p>
-              <p className="mt-1 text-[11px] text-zinc-500">Thử đổi từ khóa hoặc bộ lọc khác.</p>
+            ))}
+          </div>
+        ) : (
+          <div className="px-5 py-14 text-center">
+            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-400 border border-white/10">
+              <Search size={18} />
             </div>
-          )}
-        </div>
+            <p className="font-bold text-xs text-white">Không tìm thấy giao dịch nào</p>
+            <p className="mt-1 text-[11px] text-zinc-500">Thử đổi mốc thời gian hoặc bộ lọc khác.</p>
+          </div>
+        )}
 
         {visibleData.length < filteredData.length && (
           <div className="border-t border-white/[0.06] p-3">

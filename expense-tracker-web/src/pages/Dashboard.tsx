@@ -31,10 +31,13 @@ import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
 import QuickPresetsBar from "../components/QuickPresetsBar";
 import { parseTransactionText, detectCategoryFromText, matchCategoryId } from "../lib/smartParser";
+import { isToday, isThisWeek, isThisMonth, formatWeekRange } from "../lib/dateUtils";
 
 type DayTotal = { label: string; amount: number; isToday: boolean };
+type DashboardPeriod = "today" | "week" | "month";
 
 export default function Dashboard() {
+  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("today");
   const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -279,25 +282,106 @@ export default function Dashboard() {
   const weeklyTotals = useMemo(() => getWeeklyTotals(transactions), [transactions]);
   const maxWeeklyTotal = Math.max(...weeklyTotals.map((day) => day.amount), 1);
 
+  // Period Expense Totals (Hôm nay / Tuần này / Tháng này)
+  const periodData = useMemo(() => {
+    const expenseTx = transactions.filter((t) => t.type === TransactionType.Expense);
+    const todayTx = expenseTx.filter((t) => isToday(t.transactionDate));
+    const weekTx = expenseTx.filter((t) => isThisWeek(t.transactionDate));
+    const monthTx = expenseTx.filter((t) => isThisMonth(t.transactionDate));
+
+    const todayTotal = todayTx.reduce((sum, t) => sum + t.amount, 0);
+    const weekTotal = weekTx.reduce((sum, t) => sum + t.amount, 0);
+    const monthTotal = metrics?.totalExpense ?? monthTx.reduce((sum, t) => sum + t.amount, 0);
+
+    if (dashboardPeriod === "today") {
+      return {
+        title: "Chi Tiêu Hôm Nay",
+        amount: todayTotal,
+        count: todayTx.length,
+        subLabel: `Hôm nay, ${new Date().toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`,
+      };
+    }
+    if (dashboardPeriod === "week") {
+      return {
+        title: "Chi Tiêu Tuần Này",
+        amount: weekTotal,
+        count: weekTx.length,
+        subLabel: `Tuần này (${formatWeekRange()})`,
+      };
+    }
+    return {
+      title: "Chi Tiêu Tháng Này",
+      amount: monthTotal,
+      count: monthTx.length,
+      subLabel: new Date().toLocaleString("vi-VN", { month: "long", year: "numeric" }),
+    };
+  }, [transactions, metrics, dashboardPeriod]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 px-4 pt-4">
-      {/* 1. Thẻ Chi Tiêu Tháng Này — Minimalist Matte Dark Hero */}
+      {/* 1. Thẻ Chi Tiêu Theo Mốc Thời Gian — Minimalist Matte Dark Hero */}
       <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-5 sm:p-6 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">Chi Tiêu Tháng Này</span>
-          <span className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300">
-            <ArrowUpRight size={14} />
+        {/* Period Selector Tabs */}
+        <div className="flex items-center justify-between gap-2.5 mb-3">
+          <div className="flex flex-1 p-1 rounded-2xl bg-black border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setDashboardPeriod("today")}
+              className={cn(
+                "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                dashboardPeriod === "today"
+                  ? "bg-white text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Hôm nay
+            </button>
+            <button
+              type="button"
+              onClick={() => setDashboardPeriod("week")}
+              className={cn(
+                "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                dashboardPeriod === "week"
+                  ? "bg-white text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Tuần này
+            </button>
+            <button
+              type="button"
+              onClick={() => setDashboardPeriod("month")}
+              className={cn(
+                "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                dashboardPeriod === "month"
+                  ? "bg-white text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Tháng này
+            </button>
+          </div>
+
+          <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300 shrink-0">
+            <ArrowUpRight size={15} />
           </span>
         </div>
-        <p className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight my-1">
-          {isLoading ? "..." : formatCurrency(metrics?.totalExpense ?? 0)}
-        </p>
+
+        <div className="mt-2">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400 block">
+            {periodData.title}
+          </span>
+          <p className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight my-1.5">
+            {isLoading ? "..." : formatCurrency(periodData.amount)}
+          </p>
+        </div>
+
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.06] text-xs">
-          <span className="text-zinc-500 font-medium capitalize">
-            {new Date().toLocaleString("vi-VN", { month: "long", year: "numeric" })}
+          <span className="text-zinc-400 font-medium capitalize">
+            {periodData.subLabel}
           </span>
           <span className="text-zinc-400 font-medium text-[11px]">
-            Đồng bộ thời gian thực
+            {isLoading ? "Đang đồng bộ..." : `${periodData.count} giao dịch`}
           </span>
         </div>
       </section>
@@ -307,13 +391,13 @@ export default function Dashboard() {
 
       {/* 3. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
       <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PlusCircle size={17} className="text-zinc-400" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <PlusCircle size={16} className="text-zinc-400" />
             <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {/* Smart Paste Button - Dán thông báo MoMo/Bank */}
             <button
               type="button"
@@ -422,7 +506,7 @@ export default function Dashboard() {
               placeholder="Ghi chú (Gõ bún, cà phê, grab... để tự đoán danh mục)"
               value={note}
               onChange={(e) => handleNoteChange(e.target.value)}
-              className="flex-1 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
+              className="flex-1 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-base sm:text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
             />
             <button
               type="submit"

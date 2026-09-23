@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { 
   Trash2, 
   Image as ImageIcon, 
@@ -23,13 +24,28 @@ import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
 
 export default function ReceiptSnaps() {
+  const location = useLocation();
   const [receiptTransactions, setReceiptTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
-  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+
+  // Mở camera tự động lên đầu tiên khi bấm vào tab Hóa đơn
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(true);
+
+  // Mở camera mỗi khi điều hướng đến tab Hóa đơn
+  useEffect(() => {
+    setIsCameraModalOpen(true);
+  }, [location.pathname, location.key]);
+
+  // Lắng nghe sự kiện click từ thanh điều hướng đáy
+  useEffect(() => {
+    const handleOpenCamera = () => setIsCameraModalOpen(true);
+    window.addEventListener("open-camera-modal", handleOpenCamera);
+    return () => window.removeEventListener("open-camera-modal", handleOpenCamera);
+  }, []);
 
   // Tải danh sách hóa đơn và danh mục thật từ Backend
   const loadSnaps = useCallback(() => {
@@ -104,7 +120,26 @@ export default function ReceiptSnaps() {
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-black font-bold text-xs shadow-sm hover:bg-zinc-200 active:scale-95 transition"
         >
           <Camera size={14} className="text-black" />
-          <span>Chụp Thêm</span>
+          <span>Bật Camera</span>
+        </button>
+      </div>
+
+      {/* Switcher chế độ: Bật Camera & Xem Kho Ảnh */}
+      <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
+        <button
+          type="button"
+          onClick={() => setIsCameraModalOpen(true)}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/10 text-white transition active:scale-95"
+        >
+          <Camera size={14} className="text-zinc-300" />
+          <span>Bật Camera Chụp</span>
+        </button>
+        <button
+          type="button"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold bg-white text-black shadow-sm"
+        >
+          <ImageIcon size={14} />
+          <span>Kho Hóa Đơn ({receiptTransactions.length})</span>
         </button>
       </div>
 

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  X, 
   RefreshCw, 
   Image as ImageIcon, 
   Check, 
@@ -354,10 +353,11 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
             <button
               type="button"
               onClick={capturedImage ? handleRetake : onClose}
-              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/90 backdrop-blur-xl border border-white/10 flex items-center justify-center transition shadow-lg"
-              title={capturedImage ? "Chụp lại" : "Đóng"}
+              className="px-3.5 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/90 backdrop-blur-xl border border-white/10 flex items-center gap-1.5 transition shadow-lg text-xs font-semibold"
+              title={capturedImage ? "Chụp lại" : "Xem kho hóa đơn"}
             >
-              {capturedImage ? <RotateCcw size={18} /> : <X size={20} />}
+              {capturedImage ? <RotateCcw size={16} /> : <ImageIcon size={16} />}
+              <span>{capturedImage ? "Chụp lại" : "Kho ảnh"}</span>
             </button>
 
             {/* Locket Logo Badge */}

@@ -43,6 +43,11 @@ export default function MainLayout() {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => {
+                  if (item.path === "/snaps") {
+                    window.dispatchEvent(new CustomEvent("open-camera-modal"));
+                  }
+                }}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center py-1.5 transition-all duration-150 rounded-2xl active:scale-95",
                   isActive

@@ -59,7 +59,48 @@ export async function getLocalReceipt(key?: string | null): Promise<string | nul
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(key);
-      req.onsuccess = () => resolve((req.result as string) || null);
+      req.onsuccess = () => {
+        if (req.result) {
+          resolve(req.result as string);
+          return;
+        }
+
+        // Thử tìm theo URL pathname nếu key là URL tuyệt đối
+        try {
+          if (key.startsWith("http://") || key.startsWith("https://")) {
+            const parsed = new URL(key);
+            const pathReq = store.get(parsed.pathname);
+            pathReq.onsuccess = () => {
+              if (pathReq.result) {
+                resolve(pathReq.result as string);
+              } else {
+                // Thử tìm theo tên file cuối cùng
+                const fileName = parsed.pathname.split("/").pop();
+                if (fileName) {
+                  const fileReq = store.get(fileName);
+                  fileReq.onsuccess = () => resolve((fileReq.result as string) || null);
+                  fileReq.onerror = () => resolve(null);
+                } else {
+                  resolve(null);
+                }
+              }
+            };
+            pathReq.onerror = () => resolve(null);
+            return;
+          }
+        } catch {}
+
+        // Nếu key là /uploads/xxx.jpg, thử tìm theo filename xxx.jpg
+        const fileName = key.split("/").pop();
+        if (fileName && fileName !== key) {
+          const fileReq = store.get(fileName);
+          fileReq.onsuccess = () => resolve((fileReq.result as string) || null);
+          fileReq.onerror = () => resolve(null);
+          return;
+        }
+
+        resolve(null);
+      };
       req.onerror = () => resolve(null);
     });
   } catch {

@@ -11,10 +11,12 @@ namespace ExpenseTracker.Api.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<TransactionsController> _logger;
 
-    public TransactionsController(IMediator mediator)
+    public TransactionsController(IMediator mediator, ILogger<TransactionsController> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -67,11 +69,21 @@ public class TransactionsController : ControllerBase
         {
             try
             {
-                var cleanUrl = supabaseUrl.TrimEnd('/');
+                var cleanUrl = supabaseUrl.Trim().TrimEnd('/');
+                if (cleanUrl.EndsWith("/rest/v1", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanUrl = cleanUrl.Substring(0, cleanUrl.Length - "/rest/v1".Length).TrimEnd('/');
+                }
+                else if (cleanUrl.EndsWith("/rest", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanUrl = cleanUrl.Substring(0, cleanUrl.Length - "/rest".Length).TrimEnd('/');
+                }
+
+                var cleanKey = supabaseKey.Trim();
                 var endpoint = $"{cleanUrl}/storage/v1/object/receipts/{uniqueFileName}";
                 using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("apikey", supabaseKey);
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
+                client.DefaultRequestHeaders.Add("apikey", cleanKey);
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {cleanKey}");
 
                 using var stream = file.OpenReadStream();
                 using var content = new StreamContent(stream);
@@ -81,12 +93,18 @@ public class TransactionsController : ControllerBase
                 if (response.IsSuccessStatusCode)
                 {
                     var publicUrl = $"{cleanUrl}/storage/v1/object/public/receipts/{uniqueFileName}";
+                    _logger.LogInformation("Receipt successfully uploaded to Supabase Storage: {Url}", publicUrl);
                     return Ok(new { url = publicUrl, path = publicUrl });
                 }
+                else
+                {
+                    var errBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Supabase Storage upload failed with status {StatusCode}: {ErrorBody}. Falling back to local storage.", response.StatusCode, errBody);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback nếu có lỗi mạng
+                _logger.LogWarning(ex, "Supabase Storage upload encountered an exception. Falling back to local storage.");
             }
         }
 

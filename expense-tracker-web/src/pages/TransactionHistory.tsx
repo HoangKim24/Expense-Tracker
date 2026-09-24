@@ -13,6 +13,7 @@ import {
   type TransactionDto 
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
+import ReceiptImage from "../components/ReceiptImage";
 import { isToday, isThisWeek, isThisMonth, groupTransactionsByDate } from "../lib/dateUtils";
 
 type FilterMode = "all" | "receipt" | "momo" | "cake" | "manual";
@@ -330,8 +331,9 @@ export default function TransactionHistory() {
                         <div className="flex min-w-0 items-center gap-3">
                           {hasReceipt && receiptUrl ? (
                             <div className="relative h-11 w-11 shrink-0 rounded-xl overflow-hidden border border-white/20 bg-black">
-                              <img
+                              <ReceiptImage
                                 src={receiptUrl}
+                                path={t.receiptImagePath}
                                 alt="Bill thumbnail"
                                 className="h-full w-full object-cover"
                               />

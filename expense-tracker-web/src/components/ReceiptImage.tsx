@@ -18,10 +18,11 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
     setCurrentSrc(src);
     setHasError(false);
 
-    // Kiểm tra bản lưu dự phòng trong IndexedDB nếu có path
-    if (path) {
-      getLocalReceipt(path).then((cached) => {
-        if (isMounted && cached && !src) {
+    // Kiểm tra bản lưu dự phòng trong IndexedDB nếu không có src sẵn
+    const lookupKey = path || src;
+    if (lookupKey && !src) {
+      getLocalReceipt(lookupKey).then((cached) => {
+        if (isMounted && cached) {
           setCurrentSrc(cached);
         }
       });
@@ -34,9 +35,10 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
 
   const handleError = async () => {
     // Khi URL từ server trả về 404 (do Render khởi động lại xóa file /uploads)
-    if (path) {
-      const cached = await getLocalReceipt(path);
-      if (cached) {
+    const lookupKey = path || src;
+    if (lookupKey) {
+      const cached = await getLocalReceipt(lookupKey);
+      if (cached && cached !== currentSrc) {
         setCurrentSrc(cached);
         setHasError(false);
         return;

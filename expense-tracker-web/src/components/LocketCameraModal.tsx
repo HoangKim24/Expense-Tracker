@@ -260,12 +260,22 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
         const optimizedFile = await compressImageFile(capturedFile);
         const dataUrl = await fileToDataUrl(optimizedFile);
 
-        const uploadRes = await uploadReceipt(optimizedFile);
-        receiptPath = uploadRes.path;
+        try {
+          const uploadRes = await uploadReceipt(optimizedFile);
+          receiptPath = uploadRes.path;
 
-        // Lưu bản sao vĩnh viễn vào IndexedDB trên điện thoại để không bị mất khi Render khởi động lại
-        if (receiptPath) {
-          await saveLocalReceipt(receiptPath, dataUrl);
+          // Lưu bản sao vĩnh viễn vào IndexedDB trên điện thoại để không bị mất khi Render khởi động lại
+          if (receiptPath) {
+            await saveLocalReceipt(receiptPath, dataUrl);
+            if (uploadRes.url && uploadRes.url !== receiptPath) {
+              await saveLocalReceipt(uploadRes.url, dataUrl);
+            }
+          }
+        } catch (uploadErr) {
+          console.warn("Upload to server failed, saving receipt to local offline storage:", uploadErr);
+          const localKey = `/uploads/local_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
+          receiptPath = localKey;
+          await saveLocalReceipt(localKey, dataUrl);
         }
       }
 

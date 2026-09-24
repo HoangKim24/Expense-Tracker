@@ -139,14 +139,26 @@ using (var scope = app.Services.CreateScope())
                             ) THEN
                                 CREATE POLICY ""Allow public read on Categories"" ON ""Categories"" FOR SELECT USING (true);
                             END IF;
+
+                            -- Tự động cấp quyền lưu và đọc ảnh cho bucket receipts
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow public select on receipts'
+                            ) THEN
+                                CREATE POLICY ""Allow public select on receipts"" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
+                            END IF;
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow public insert on receipts'
+                            ) THEN
+                                CREATE POLICY ""Allow public insert on receipts"" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
+                            END IF;
                         END
                         $$;
                     ");
-                    app.Logger.LogInformation("RLS configured on Supabase tables.");
+                    app.Logger.LogInformation("RLS and storage policies configured on Supabase.");
                 }
                 catch (Exception ex)
                 {
-                    app.Logger.LogWarning(ex, "Could not automatically configure RLS policies on Supabase.");
+                    app.Logger.LogWarning(ex, "Could not automatically configure policies on Supabase.");
                 }
             }
             else

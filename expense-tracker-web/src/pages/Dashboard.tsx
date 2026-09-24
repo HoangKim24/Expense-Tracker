@@ -390,48 +390,48 @@ export default function Dashboard() {
       <QuickPresetsBar categories={categories} onTransactionCreated={loadData} />
 
       {/* 3. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
-      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <PlusCircle size={16} className="text-zinc-400" />
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
-          </div>
+      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-3">
+        {/* Dòng 1: Tiêu đề */}
+        <div className="flex items-center gap-1.5">
+          <PlusCircle size={16} className="text-zinc-400" />
+          <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
+        </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {/* Smart Paste Button - Dán thông báo MoMo/Bank */}
-            <button
-              type="button"
-              onClick={handleSmartPaste}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
-              title="Dán thông báo MoMo / Bank để tự động điền"
-            >
-              <Clipboard size={13} className="text-zinc-300" />
-              <span>Dán</span>
-            </button>
+        {/* Dòng 2: Các nút action — cuộn ngang trên mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          {/* Smart Paste Button */}
+          <button
+            type="button"
+            onClick={handleSmartPaste}
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+            title="Dán thông báo MoMo / Bank để tự động điền"
+          >
+            <Clipboard size={13} className="text-zinc-300" />
+            <span>Dán</span>
+          </button>
 
-            {/* MoMo & Cake Gmail Sync Button - Minimalist Dark Glass */}
-            <button
-              type="button"
-              onClick={handleSyncMoMoCake}
-              disabled={isSyncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm disabled:opacity-50"
-              title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
-            >
-              <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
-              <span>{isSyncing ? "Đang quét..." : "MoMo & Cake"}</span>
-            </button>
+          {/* MoMo & Cake Gmail Sync Button */}
+          <button
+            type="button"
+            onClick={handleSyncMoMoCake}
+            disabled={isSyncing}
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm disabled:opacity-50"
+            title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
+          >
+            <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
+            <span>{isSyncing ? "Đang quét..." : "MoMo & Cake"}</span>
+          </button>
 
-            {/* Locket Snap Quick Camera Button - Minimalist Dark Glass */}
-            <button
-              type="button"
-              onClick={() => setIsCameraModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
-              title="Chụp ảnh hóa đơn phong cách Locket"
-            >
-              <Camera size={14} className="text-zinc-300" />
-              <span>Locket Snap</span>
-            </button>
-          </div>
+          {/* Locket Snap Quick Camera Button */}
+          <button
+            type="button"
+            onClick={() => setIsCameraModalOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+            title="Chụp ảnh hóa đơn phong cách Locket"
+          >
+            <Camera size={14} className="text-zinc-300" />
+            <span>Locket Snap</span>
+          </button>
         </div>
 
         <form onSubmit={handleSaveTransaction} className="space-y-3.5">
@@ -562,27 +562,59 @@ export default function Dashboard() {
       </section>
 
       {/* 4. Top Danh Mục Chi Tiêu Tháng Này */}
-      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-5 shadow-sm space-y-3">
+      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Danh mục chi tiêu chính</h2>
           <Link to="/analytics" className="text-xs font-semibold text-zinc-400 hover:text-white">Chi tiết</Link>
         </div>
 
-        <div className="space-y-2.5">
-          {(metrics?.categoryBreakdown ?? []).slice(0, 4).map((category) => (
-            <div key={category.categoryName} className="space-y-1.5">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-zinc-200">{category.categoryName}</span>
-                <span className="text-zinc-400">{formatCurrency(category.totalAmount)}</span>
-              </div>
-              <div className="h-2 rounded-full bg-zinc-900 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-white transition-all duration-500"
-                  style={{ width: `${Math.min(category.percentage, 100)}%` }}
-                />
-              </div>
+        {/* Donut chart + legend */}
+        {(metrics?.categoryBreakdown.length ?? 0) > 0 && (
+          <div className="flex items-center gap-4">
+            {/* SVG Donut */}
+            <CategoryDonutChart breakdown={metrics?.categoryBreakdown ?? []} />
+
+            {/* Legend list */}
+            <div className="flex-1 space-y-2 min-w-0">
+              {(metrics?.categoryBreakdown ?? []).slice(0, 5).map((category, idx) => {
+                const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
+                return (
+                  <div key={category.categoryName} className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                    />
+                    <span className="text-xs text-zinc-300 truncate flex-1">{category.categoryName}</span>
+                    <span className="text-xs font-bold text-white shrink-0">{Math.round(category.percentage)}%</span>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Progress bars */}
+        <div className="space-y-2.5">
+          {(metrics?.categoryBreakdown ?? []).slice(0, 4).map((category, idx) => {
+            const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
+            return (
+              <div key={category.categoryName} className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-zinc-200">{category.categoryName}</span>
+                  <span className="text-zinc-400">{formatCurrency(category.totalAmount)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-zinc-900 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(category.percentage, 100)}%`,
+                      backgroundColor: COLORS[idx % COLORS.length],
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
 
           {!isLoading && (metrics?.categoryBreakdown.length ?? 0) === 0 && (
             <p className="text-center text-xs font-medium text-zinc-500 py-3">Chưa có khoản chi nào trong tháng này.</p>
@@ -638,5 +670,92 @@ function isSameDay(first: Date, second: Date) {
     first.getFullYear() === second.getFullYear() &&
     first.getMonth() === second.getMonth() &&
     first.getDate() === second.getDate()
+  );
+}
+
+/** SVG Donut chart cho phần danh mục */
+function CategoryDonutChart({
+  breakdown,
+}: {
+  breakdown: Array<{ categoryName: string; totalAmount: number; percentage: number }>;
+}) {
+  const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
+  const SIZE = 120;
+  const CX = SIZE / 2;
+  const CY = SIZE / 2;
+  const R = 42;
+  const STROKE_WIDTH = 17;
+  const CIRC = 2 * Math.PI * R;
+  const GAP = 2; // khoảng trống px giữa các segment
+
+  const total = breakdown.reduce((s, c) => s + c.totalAmount, 0);
+  if (total === 0) return null;
+
+  let cumulativePct = 0;
+
+  return (
+    <svg
+      width={SIZE}
+      height={SIZE}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      className="shrink-0 drop-shadow-lg"
+    >
+      {/* Track nền */}
+      <circle
+        cx={CX}
+        cy={CY}
+        r={R}
+        fill="none"
+        stroke="rgba(255,255,255,0.05)"
+        strokeWidth={STROKE_WIDTH}
+      />
+
+      {breakdown.slice(0, 7).map((cat, i) => {
+        const pct = (cat.totalAmount / total) * 100;
+        const dashLen = Math.max((pct / 100) * CIRC - GAP, 0);
+        const rotation = (cumulativePct / 100) * 360 - 90; // -90 = bắt đầu từ đỉnh
+        const el = (
+          <circle
+            key={cat.categoryName}
+            cx={CX}
+            cy={CY}
+            r={R}
+            fill="none"
+            stroke={COLORS[i % COLORS.length]}
+            strokeWidth={STROKE_WIDTH}
+            strokeDasharray={`${dashLen} ${CIRC}`}
+            transform={`rotate(${rotation} ${CX} ${CY})`}
+            strokeLinecap="butt"
+            className="transition-all duration-700"
+          />
+        );
+        cumulativePct += pct;
+        return el;
+      })}
+
+      {/* Trung tâm: hiển thị tổng số danh mục */}
+      <text
+        x={CX}
+        y={CY - 4}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        className="fill-white font-bold"
+        fontSize="14"
+        fontWeight="800"
+        fill="white"
+      >
+        {breakdown.length}
+      </text>
+      <text
+        x={CX}
+        y={CY + 11}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize="8"
+        fill="rgba(255,255,255,0.45)"
+      >
+        danh mục
+      </text>
+    </svg>
   );
 }

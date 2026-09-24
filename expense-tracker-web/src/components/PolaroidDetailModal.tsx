@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Calendar, Tag, Download, Image as ImageIcon } from "lucide-react";
+import { X, Trash2, Calendar, Tag, Download } from "lucide-react";
 import { getReceiptImageUrl, type TransactionDto } from "../lib/api";
+import ReceiptImage from "./ReceiptImage";
 
 interface Props {
   transaction: TransactionDto | null;
@@ -45,18 +46,12 @@ export default function PolaroidDetailModal({ transaction, isOpen, onClose, onDe
           <div className="bg-black p-3 pb-5 rounded-[24px] border border-white/[0.08] shadow-inner space-y-4">
             {/* Photo / Receipt Image */}
             <div className="relative w-full aspect-square rounded-[18px] overflow-hidden bg-zinc-900 flex items-center justify-center">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={transaction.description || "Receipt"}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-zinc-600">
-                  <ImageIcon size={44} />
-                  <span className="text-xs font-medium">Giao dịch không có ảnh bill</span>
-                </div>
-              )}
+              <ReceiptImage
+                src={imageUrl}
+                path={transaction.receiptImagePath}
+                alt={transaction.description || "Receipt"}
+                className="w-full h-full object-cover"
+              />
 
               {/* Tag overlay */}
               {transaction.categoryName && (

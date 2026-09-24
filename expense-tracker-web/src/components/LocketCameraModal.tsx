@@ -13,6 +13,7 @@ import {
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { compressImageFile } from "../lib/imageUtils";
+import { saveLocalReceipt, fileToDataUrl } from "../lib/receiptStorage";
 import { 
   getCategories, 
   uploadReceipt, 
@@ -257,8 +258,15 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       if (capturedFile) {
         // Tự động nén ảnh phía client siêu tốc
         const optimizedFile = await compressImageFile(capturedFile);
+        const dataUrl = await fileToDataUrl(optimizedFile);
+
         const uploadRes = await uploadReceipt(optimizedFile);
         receiptPath = uploadRes.path;
+
+        // Lưu bản sao vĩnh viễn vào IndexedDB trên điện thoại để không bị mất khi Render khởi động lại
+        if (receiptPath) {
+          await saveLocalReceipt(receiptPath, dataUrl);
+        }
       }
 
       const selectedCat = categories.find((c) => c.id === selectedCategoryId);

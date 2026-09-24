@@ -22,6 +22,7 @@ import {
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
+import ReceiptImage from "../components/ReceiptImage";
 
 export default function ReceiptSnaps() {
   const location = useLocation();
@@ -237,18 +238,12 @@ export default function ReceiptSnaps() {
               >
                 {/* Photo frame */}
                 <div className="relative w-full aspect-square rounded-[18px] overflow-hidden bg-black shadow-inner">
-                  {url ? (
-                    <img
-                      src={url}
-                      alt={t.description || "Hóa đơn"}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                      <ImageIcon size={32} />
-                    </div>
-                  )}
+                  <ReceiptImage
+                    src={url}
+                    path={t.receiptImagePath}
+                    alt={t.description || "Hóa đơn"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  />
 
                   {/* Date badge */}
                   <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-semibold text-white">

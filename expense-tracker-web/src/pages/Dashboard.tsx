@@ -31,13 +31,13 @@ import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
 import QuickPresetsBar from "../components/QuickPresetsBar";
 import { parseTransactionText, detectCategoryFromText, matchCategoryId } from "../lib/smartParser";
-import { isToday, isThisWeek, isThisMonth, formatWeekRange } from "../lib/dateUtils";
+import { isSameDay, isToday, isThisWeek, isThisMonth, formatWeekRange } from "../lib/dateUtils";
 
 type DayTotal = { label: string; amount: number; isToday: boolean };
 type DashboardPeriod = "today" | "week" | "month";
 
 export default function Dashboard() {
-  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("today");
+  const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("month");
   const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -317,6 +317,45 @@ export default function Dashboard() {
     };
   }, [transactions, metrics, dashboardPeriod]);
 
+  // Dynamic Category Breakdown theo period (Hôm nay / Tuần này / Tháng này)
+  const categoryBreakdown = useMemo(() => {
+    let txList = transactions.filter((t) => t.type === TransactionType.Expense);
+    if (dashboardPeriod === "today") {
+      const today = new Date();
+      txList = txList.filter((t) => isSameDay(t.transactionDate, today));
+    } else if (dashboardPeriod === "week") {
+      txList = txList.filter((t) => isThisWeek(t.transactionDate));
+    } else {
+      txList = txList.filter((t) => isThisMonth(t.transactionDate));
+    }
+
+    if (txList.length > 0) {
+      const totalAmount = txList.reduce((s, t) => s + t.amount, 0);
+      const catMap = new Map<string, number>();
+
+      for (const t of txList) {
+        const cat = categories.find((c) => c.id === t.categoryId);
+        const name = cat?.name || "Khác";
+        catMap.set(name, (catMap.get(name) || 0) + t.amount);
+      }
+
+      return Array.from(catMap.entries())
+        .map(([categoryName, amount]) => ({
+          categoryName,
+          totalAmount: amount,
+          percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+    }
+
+    // Fallback to metrics?.categoryBreakdown nếu txList rỗng nhưng metrics có
+    if (metrics?.categoryBreakdown && metrics.categoryBreakdown.length > 0) {
+      return metrics.categoryBreakdown;
+    }
+
+    return [];
+  }, [transactions, categories, dashboardPeriod, metrics]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 px-4 pt-4">
       {/* 1. Thẻ Chi Tiêu Theo Mốc Thời Gian — Minimalist Matte Dark Hero */}
@@ -390,48 +429,49 @@ export default function Dashboard() {
       <QuickPresetsBar categories={categories} onTransactionCreated={loadData} />
 
       {/* 3. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
-      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-3">
-        {/* Dòng 1: Tiêu đề */}
-        <div className="flex items-center gap-1.5">
-          <PlusCircle size={16} className="text-zinc-400" />
-          <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
-        </div>
+      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-3.5">
+        {/* Header trên 1 hàng duy nhất: Tiêu đề bên trái, 3 nút hành động bên phải */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <PlusCircle size={15} className="text-zinc-400" />
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi</h2>
+          </div>
 
-        {/* Dòng 2: Các nút action — cuộn ngang trên mobile */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
-          {/* Smart Paste Button */}
-          <button
-            type="button"
-            onClick={handleSmartPaste}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
-            title="Dán thông báo MoMo / Bank để tự động điền"
-          >
-            <Clipboard size={13} className="text-zinc-300" />
-            <span>Dán</span>
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Smart Paste Button */}
+            <button
+              type="button"
+              onClick={handleSmartPaste}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-[11px] font-semibold transition active:scale-95 shadow-sm"
+              title="Dán thông báo MoMo / Bank để tự động điền"
+            >
+              <Clipboard size={12} className="text-zinc-300" />
+              <span>Dán</span>
+            </button>
 
-          {/* MoMo & Cake Gmail Sync Button */}
-          <button
-            type="button"
-            onClick={handleSyncMoMoCake}
-            disabled={isSyncing}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm disabled:opacity-50"
-            title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
-          >
-            <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "Đang quét..." : "MoMo & Cake"}</span>
-          </button>
+            {/* MoMo & Cake Gmail Sync Button */}
+            <button
+              type="button"
+              onClick={handleSyncMoMoCake}
+              disabled={isSyncing}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-[11px] font-semibold transition active:scale-95 shadow-sm disabled:opacity-50"
+              title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
+            >
+              <RefreshCw size={12} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
+              <span>{isSyncing ? "..." : "MoMo"}</span>
+            </button>
 
-          {/* Locket Snap Quick Camera Button */}
-          <button
-            type="button"
-            onClick={() => setIsCameraModalOpen(true)}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
-            title="Chụp ảnh hóa đơn phong cách Locket"
-          >
-            <Camera size={14} className="text-zinc-300" />
-            <span>Locket Snap</span>
-          </button>
+            {/* Locket Snap Quick Camera Button */}
+            <button
+              type="button"
+              onClick={() => setIsCameraModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-[11px] font-semibold transition active:scale-95 shadow-sm"
+              title="Chụp ảnh hóa đơn phong cách Locket"
+            >
+              <Camera size={12} className="text-zinc-300" />
+              <span>Snap</span>
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSaveTransaction} className="space-y-3.5">
@@ -503,15 +543,15 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Ghi chú (Gõ bún, cà phê, grab... để tự đoán danh mục)"
+              placeholder="Ghi chú (Gõ bún, cà phê, grab...)"
               value={note}
               onChange={(e) => handleNoteChange(e.target.value)}
-              className="flex-1 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-base sm:text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
+              className="flex-1 min-w-0 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-sm sm:text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
             />
             <button
               type="submit"
               disabled={isSubmitting || !amount}
-              className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 active:scale-95 font-bold text-xs text-black shadow-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none"
+              className="shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 active:scale-95 font-bold text-xs text-black shadow-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none"
             >
               <CheckCircle2 size={15} /> Ghi Sổ
             </button>
@@ -544,7 +584,9 @@ export default function Dashboard() {
                   style={{ height: `${height}%` }}
                   className={`w-full rounded-xl transition-all duration-300 ${
                     day.isToday
-                      ? "bg-white shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                      ? day.amount > 0
+                        ? "bg-white shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                        : "bg-zinc-700/60 border border-white/20"
                       : "bg-zinc-800/80 hover:bg-zinc-700"
                   }`}
                 />
@@ -561,31 +603,38 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 4. Top Danh Mục Chi Tiêu Tháng Này */}
-      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-5 shadow-sm space-y-4">
+      {/* 4. Top Danh Mục Chi Tiêu */}
+      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Danh mục chi tiêu chính</h2>
+          <div>
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Danh mục chi tiêu chính</h2>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              {dashboardPeriod === "today" ? "Hôm nay" : dashboardPeriod === "week" ? "Tuần này" : "Tháng này"}
+            </p>
+          </div>
           <Link to="/analytics" className="text-xs font-semibold text-zinc-400 hover:text-white">Chi tiết</Link>
         </div>
 
         {/* Donut chart + legend */}
-        {(metrics?.categoryBreakdown.length ?? 0) > 0 && (
-          <div className="flex items-center gap-4">
+        {categoryBreakdown.length > 0 && (
+          <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-black/60 border border-white/[0.05]">
             {/* SVG Donut */}
-            <CategoryDonutChart breakdown={metrics?.categoryBreakdown ?? []} />
+            <CategoryDonutChart breakdown={categoryBreakdown} />
 
             {/* Legend list */}
             <div className="flex-1 space-y-2 min-w-0">
-              {(metrics?.categoryBreakdown ?? []).slice(0, 5).map((category, idx) => {
-                const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
+              {categoryBreakdown.slice(0, 5).map((category, idx) => {
+                const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4"];
                 return (
-                  <div key={category.categoryName} className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                    />
-                    <span className="text-xs text-zinc-300 truncate flex-1">{category.categoryName}</span>
-                    <span className="text-xs font-bold text-white shrink-0">{Math.round(category.percentage)}%</span>
+                  <div key={category.categoryName} className="flex items-center justify-between gap-1.5 min-w-0 text-xs">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                      />
+                      <span className="text-zinc-300 truncate">{category.categoryName}</span>
+                    </div>
+                    <span className="font-bold text-white shrink-0">{Math.round(category.percentage)}%</span>
                   </div>
                 );
               })}
@@ -595,8 +644,8 @@ export default function Dashboard() {
 
         {/* Progress bars */}
         <div className="space-y-2.5">
-          {(metrics?.categoryBreakdown ?? []).slice(0, 4).map((category, idx) => {
-            const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
+          {categoryBreakdown.slice(0, 4).map((category, idx) => {
+            const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4"];
             return (
               <div key={category.categoryName} className="space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold">
@@ -616,8 +665,10 @@ export default function Dashboard() {
             );
           })}
 
-          {!isLoading && (metrics?.categoryBreakdown.length ?? 0) === 0 && (
-            <p className="text-center text-xs font-medium text-zinc-500 py-3">Chưa có khoản chi nào trong tháng này.</p>
+          {!isLoading && categoryBreakdown.length === 0 && (
+            <p className="text-center text-xs font-medium text-zinc-500 py-3">
+              Chưa có khoản chi nào trong {dashboardPeriod === "today" ? "hôm nay" : dashboardPeriod === "week" ? "tuần này" : "tháng này"}.
+            </p>
           )}
         </div>
       </section>
@@ -665,28 +716,20 @@ function getWeeklyTotals(transactions: TransactionDto[]): DayTotal[] {
   });
 }
 
-function isSameDay(first: Date, second: Date) {
-  return (
-    first.getFullYear() === second.getFullYear() &&
-    first.getMonth() === second.getMonth() &&
-    first.getDate() === second.getDate()
-  );
-}
-
 /** SVG Donut chart cho phần danh mục */
 function CategoryDonutChart({
   breakdown,
 }: {
   breakdown: Array<{ categoryName: string; totalAmount: number; percentage: number }>;
 }) {
-  const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
-  const SIZE = 120;
+  const COLORS = ["#f97316", "#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4"];
+  const SIZE = 110;
   const CX = SIZE / 2;
   const CY = SIZE / 2;
-  const R = 42;
-  const STROKE_WIDTH = 17;
+  const R = 38;
+  const STROKE_WIDTH = 15;
   const CIRC = 2 * Math.PI * R;
-  const GAP = 2; // khoảng trống px giữa các segment
+  const GAP = breakdown.length > 1 ? 2.5 : 0; // Không trừ khoảng trống nếu chỉ có 1 danh mục
 
   const total = breakdown.reduce((s, c) => s + c.totalAmount, 0);
   if (total === 0) return null;
@@ -698,7 +741,7 @@ function CategoryDonutChart({
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
-      className="shrink-0 drop-shadow-lg"
+      className="shrink-0 drop-shadow-md"
     >
       {/* Track nền */}
       <circle
@@ -706,14 +749,14 @@ function CategoryDonutChart({
         cy={CY}
         r={R}
         fill="none"
-        stroke="rgba(255,255,255,0.05)"
+        stroke="rgba(255,255,255,0.06)"
         strokeWidth={STROKE_WIDTH}
       />
 
       {breakdown.slice(0, 7).map((cat, i) => {
         const pct = (cat.totalAmount / total) * 100;
         const dashLen = Math.max((pct / 100) * CIRC - GAP, 0);
-        const rotation = (cumulativePct / 100) * 360 - 90; // -90 = bắt đầu từ đỉnh
+        const rotation = (cumulativePct / 100) * 360 - 90; // Bắt đầu từ đỉnh (-90 độ)
         const el = (
           <circle
             key={cat.categoryName}
@@ -725,7 +768,7 @@ function CategoryDonutChart({
             strokeWidth={STROKE_WIDTH}
             strokeDasharray={`${dashLen} ${CIRC}`}
             transform={`rotate(${rotation} ${CX} ${CY})`}
-            strokeLinecap="butt"
+            strokeLinecap="round"
             className="transition-all duration-700"
           />
         );
@@ -733,18 +776,18 @@ function CategoryDonutChart({
         return el;
       })}
 
-      {/* Trung tâm: hiển thị tổng số danh mục */}
+      {/* Trung tâm: hiển thị tỷ lệ hoặc số lượng danh mục */}
       <text
         x={CX}
-        y={CY - 4}
+        y={CY - 3}
         textAnchor="middle"
         dominantBaseline="middle"
         className="fill-white font-bold"
-        fontSize="14"
+        fontSize="13"
         fontWeight="800"
         fill="white"
       >
-        {breakdown.length}
+        {breakdown.length === 1 ? "100%" : `${breakdown.length}`}
       </text>
       <text
         x={CX}
@@ -752,9 +795,10 @@ function CategoryDonutChart({
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize="8"
+        fontWeight="500"
         fill="rgba(255,255,255,0.45)"
       >
-        danh mục
+        {breakdown.length === 1 ? "chi tiêu" : "danh mục"}
       </text>
     </svg>
   );

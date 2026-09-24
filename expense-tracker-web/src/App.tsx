@@ -6,11 +6,25 @@ import ReceiptSnaps from "./pages/ReceiptSnaps";
 import Analytics from "./pages/Analytics";
 import TransactionHistory from "./pages/TransactionHistory";
 
-// Tự động hồi phục khi có bản cập nhật mới trên Vercel
+// Tự động cập nhật khi có phiên bản mới trên Vercel hoặc PWA Service Worker
 if (typeof window !== "undefined") {
   window.addEventListener("vite:preloadError", () => {
     window.location.reload();
   });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          reg?.update();
+        }).catch(() => {});
+      }
+    });
+  }
 }
 
 function App() {

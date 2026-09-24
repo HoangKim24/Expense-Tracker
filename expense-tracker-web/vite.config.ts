@@ -16,6 +16,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+      },
       includeAssets: ['favicon.svg', 'icons.svg', 'app-icon.svg', 'apple-touch-icon.svg'],
       manifest: {
         name: 'T-Expense',

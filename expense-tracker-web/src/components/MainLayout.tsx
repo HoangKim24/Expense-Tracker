@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import QuickLogDrawer from "./QuickLogDrawer";
 
@@ -47,6 +48,30 @@ export default function MainLayout() {
               <span className="text-[10px] font-medium text-zinc-500 block leading-tight">Quản lý Chi tiêu</span>
             </div>
           </div>
+
+          {/* Nút làm mới phiên bản web tức thì (xóa cache / tải bản mới nhất) */}
+          <button
+            type="button"
+            onClick={async () => {
+              toast.info("Đang kiểm tra & cập nhật bản mới nhất...");
+              if ("serviceWorker" in navigator) {
+                try {
+                  const regs = await navigator.serviceWorker.getRegistrations();
+                  for (const reg of regs) {
+                    await reg.update();
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+              window.location.reload();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+            title="Tải lại để nhận cập nhật mới nhất"
+          >
+            <RefreshCw size={13} className="text-zinc-400" />
+            <span className="text-[11px]">Làm mới</span>
+          </button>
         </div>
       </header>
 

@@ -125,6 +125,10 @@ export function getReceiptImageUrl(imagePath?: string | null): string | null {
   if (imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) {
     return imagePath;
   }
+  // Nếu là ảnh lưu cục bộ IndexedDB, không gửi request 404 lên backend server
+  if (imagePath.includes("local_")) {
+    return null;
+  }
   const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
   return `${API_BASE_URL}${cleanPath}`;
 }

@@ -232,6 +232,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
       stopStream();
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // Lật camera trước / sau
@@ -269,10 +270,23 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     const toastId = toast.loading("Đang lưu hóa đơn vào sổ...");
     try {
       let receiptPath: string | null = null;
-      if (capturedFile) {
+      let fileToUpload = capturedFile;
+
+      // Fallback an toàn: nếu canvas.toBlob chưa kịp hoàn tất nhưng đã có capturedImage DataURL
+      if (!fileToUpload && capturedImage) {
+        try {
+          const res = await fetch(capturedImage);
+          const blob = await res.blob();
+          fileToUpload = new File([blob], `snap_${Date.now()}.jpg`, { type: "image/jpeg" });
+        } catch {
+          // Bỏ qua nếu không parse được blob
+        }
+      }
+
+      if (fileToUpload) {
         // Tự động nén ảnh phía client siêu tốc
-        const optimizedFile = await compressImageFile(capturedFile);
-        const dataUrl = await fileToDataUrl(optimizedFile);
+        const optimizedFile = await compressImageFile(fileToUpload);
+        const dataUrl = capturedImage || (await fileToDataUrl(optimizedFile));
 
         try {
           const uploadRes = await uploadReceipt(optimizedFile);

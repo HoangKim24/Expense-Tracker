@@ -19,7 +19,7 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
   useEffect(() => {
     let isMounted = true;
     const lookupKey = path || src;
-    if (lookupKey && !src) {
+    if (lookupKey && (!src || lookupKey.includes("local_") || lookupKey.startsWith("data:"))) {
       getLocalReceipt(lookupKey).then((cached) => {
         if (isMounted && cached) {
           setFallbackSrc(cached);

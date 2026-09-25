@@ -167,7 +167,7 @@ export default function PinLockGuard({ children }: PinLockGuardProps) {
             key={num}
             type="button"
             onClick={() => handleKeyPress(num.toString())}
-            className="h-16 sm:h-18 rounded-3xl bg-zinc-900/90 active:bg-white active:text-black border border-white/[0.08] flex items-center justify-center text-2xl font-semibold text-white transition-all duration-150 active:scale-95 shadow-sm"
+            className="h-16 sm:h-20 rounded-3xl bg-zinc-900/90 active:bg-white active:text-black border border-white/[0.08] flex items-center justify-center text-2xl font-semibold text-white transition-all duration-150 active:scale-95 shadow-sm"
           >
             {num}
           </button>
@@ -182,7 +182,7 @@ export default function PinLockGuard({ children }: PinLockGuardProps) {
         <button
           type="button"
           onClick={() => handleKeyPress("0")}
-          className="h-16 sm:h-18 rounded-3xl bg-zinc-900/90 active:bg-white active:text-black border border-white/[0.08] flex items-center justify-center text-2xl font-semibold text-white transition-all duration-150 active:scale-95 shadow-sm"
+          className="h-16 sm:h-20 rounded-3xl bg-zinc-900/90 active:bg-white active:text-black border border-white/[0.08] flex items-center justify-center text-2xl font-semibold text-white transition-all duration-150 active:scale-95 shadow-sm"
         >
           0
         </button>
@@ -192,7 +192,7 @@ export default function PinLockGuard({ children }: PinLockGuardProps) {
           type="button"
           onClick={handleDelete}
           disabled={enteredPin.length === 0}
-          className="h-16 sm:h-18 rounded-3xl bg-zinc-900/60 active:bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-400 active:text-white transition-all duration-150 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+          className="h-16 sm:h-20 rounded-3xl bg-zinc-900/60 active:bg-zinc-800 border border-white/[0.08] flex items-center justify-center text-zinc-400 active:text-white transition-all duration-150 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
         >
           <Delete size={22} />
         </button>

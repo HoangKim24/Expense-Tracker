@@ -500,7 +500,7 @@ export default function TransactionHistory() {
                   type="button"
                   onClick={() => handleSelectDate(isSelected ? null : day.dateKey)}
                   className={cn(
-                    "shrink-0 flex flex-col items-center justify-between w-13 py-2 px-1 rounded-2xl border transition active:scale-95 text-center min-h-[58px]",
+                    "shrink-0 flex flex-col items-center justify-between w-14 py-2 px-1 rounded-2xl border transition active:scale-95 text-center min-h-[58px]",
                     isSelected
                       ? "bg-white text-black font-bold border-white shadow-lg scale-105"
                       : "bg-black/60 border-white/[0.08] hover:border-white/20 text-zinc-400 hover:text-zinc-200"
@@ -549,20 +549,24 @@ export default function TransactionHistory() {
         {/* ROW 5: DATE STEPPER BANNER (CHỈ HIỂN THỊ KHI ĐANG LỌC THEO NGÀY) */}
         {/* ──────────────────────────────────────────────────────────── */}
         {selectedDate && (
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-zinc-900/90 border border-white/15 backdrop-blur-md shadow-md">
+          <div className="flex items-center justify-between gap-1.5 px-3 py-2 rounded-2xl bg-zinc-900/90 border border-white/15 backdrop-blur-md shadow-md">
             <button
               type="button"
               onClick={handlePrevDay}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 active:scale-95 text-xs font-semibold text-zinc-200 hover:text-white transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 active:scale-95 text-xs font-semibold text-zinc-200 hover:text-white transition shrink-0"
+              title="Lùi 1 ngày"
             >
               <ChevronLeft size={14} />
               <span className="hidden sm:inline">Ngày trước</span>
             </button>
 
-            <label className="relative cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 transition active:scale-95">
+            <label className="relative cursor-pointer flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 transition active:scale-95 min-w-0 max-w-[185px] sm:max-w-none">
               <Calendar size={13} className="text-amber-400 shrink-0" />
-              <span className="text-xs font-bold text-white tracking-wide">
-                {formatDateHeading(new Date(selectedDate))}
+              <span className="text-xs font-bold text-white tracking-wide truncate">
+                {(() => {
+                  const [y, m, d] = selectedDate.split("-").map(Number);
+                  return formatDateHeading(new Date(y, m - 1, d));
+                })()}
               </span>
               <input
                 type="date"
@@ -575,7 +579,7 @@ export default function TransactionHistory() {
               />
             </label>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 onClick={handleNextDay}

@@ -545,7 +545,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
               {/* Pick from Library (Rounded Square) */}
               <label
                 htmlFor="locket-gallery-input"
-                className="cursor-pointer w-13 h-13 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
+                className="cursor-pointer w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg"
                 title="Chọn ảnh từ thư viện"
               >
                 <ImageIcon size={22} />
@@ -556,7 +556,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 type="button"
                 onClick={handleCapture}
                 disabled={hasCameraPermission === false}
-                className="relative flex items-center justify-center w-21 h-21 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
+                className="relative flex items-center justify-center w-20 h-20 rounded-full border-[5px] border-white p-1 active:scale-90 transition-transform duration-150 shadow-[0_0_30px_rgba(255,255,255,0.45)] disabled:opacity-40"
                 title="Chụp ảnh trực tiếp"
               >
                 <span className="w-full h-full rounded-full bg-white shadow-inner flex items-center justify-center" />
@@ -567,7 +567,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
                 type="button"
                 onClick={handleToggleCamera}
                 disabled={hasCameraPermission === false}
-                className="w-13 h-13 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
+                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/15 flex items-center justify-center text-white backdrop-blur-md transition shadow-lg disabled:opacity-40"
                 title="Đổi camera trước/sau"
               >
                 <RefreshCw size={22} />

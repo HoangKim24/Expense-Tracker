@@ -64,16 +64,19 @@ export default function Dashboard() {
         setMetrics(metricsData);
         setTransactions(transactionData);
         setCategories(categoryData);
-        if (categoryData.length > 0 && !selectedCategoryId) {
-          const defaultCat = categoryData.find((c) => c.name.includes("Ăn") || c.name.includes("Cà phê")) || categoryData[0];
-          setSelectedCategoryId(defaultCat.id);
+        if (categoryData.length > 0) {
+          setSelectedCategoryId((prev) => {
+            if (prev) return prev;
+            const defaultCat = categoryData.find((c) => c.name.includes("Ăn") || c.name.includes("Cà phê")) || categoryData[0];
+            return defaultCat.id;
+          });
         }
       })
       .catch(() => {
         toast.error("Không thể tải dữ liệu. Hãy đảm bảo Backend API đang chạy!");
       })
       .finally(() => setIsLoading(false));
-  }, [selectedCategoryId]);
+  }, []);
 
   // Handle Manual MoMo & Cake Gmail Sync
   const handleSyncMoMoCake = async () => {

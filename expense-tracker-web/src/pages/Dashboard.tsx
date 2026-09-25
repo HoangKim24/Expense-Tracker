@@ -507,63 +507,61 @@ export default function Dashboard() {
 
       {/* 4. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
       <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-3.5">
-        {/* Dòng 1: Tiêu đề & Switcher Chi tiêu / Thu nhập */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <PlusCircle size={15} className="text-zinc-400" />
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
-              {transactionType === TransactionType.Income ? "Ghi Khoản Thu Nhanh" : "Ghi Khoản Chi Nhanh"}
-            </h2>
-          </div>
-
-          {/* Switcher Tab */}
-          <div className="flex p-0.5 rounded-xl bg-black border border-white/[0.08]">
-            <button
-              type="button"
-              onClick={() => {
-                setTransactionType(TransactionType.Expense);
-                const expCat = categories.find((c) => c.type === TransactionType.Expense);
-                if (expCat) setSelectedCategoryId(expCat.id);
-              }}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95",
-                transactionType === TransactionType.Expense
-                  ? "bg-white text-black font-bold shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              )}
-            >
-              Chi tiêu (-)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTransactionType(TransactionType.Income);
-                const incCat = categories.find((c) => c.type === TransactionType.Income) || categories[0];
-                if (incCat) setSelectedCategoryId(incCat.id);
-              }}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95",
-                transactionType === TransactionType.Income
-                  ? "bg-emerald-400 text-black font-bold shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              )}
-            >
-              Thu nhập (+)
-            </button>
-          </div>
+        {/* Dòng 1: Tiêu đề */}
+        <div className="flex items-center gap-2">
+          <PlusCircle size={15} className="text-zinc-400" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+            Ghi Nhanh Giao Dịch
+          </h2>
         </div>
 
-        {/* Dòng 2: 3 nút thao tác chia đều 3 cột, full width cân đối */}
+        {/* Dòng 2: Switcher Chi tiêu / Thu nhập (Full-Width Segmented Tab) */}
+        <div className="grid grid-cols-2 p-1 rounded-2xl bg-black border border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => {
+              setTransactionType(TransactionType.Expense);
+              const expCat = categories.find((c) => c.type === TransactionType.Expense);
+              if (expCat) setSelectedCategoryId(expCat.id);
+            }}
+            className={cn(
+              "py-1.5 rounded-xl text-xs font-bold transition active:scale-95 text-center",
+              transactionType === TransactionType.Expense
+                ? "bg-white text-black shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Chi tiêu (-)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTransactionType(TransactionType.Income);
+              const incCat = categories.find((c) => c.type === TransactionType.Income) || categories[0];
+              if (incCat) setSelectedCategoryId(incCat.id);
+            }}
+            className={cn(
+              "py-1.5 rounded-xl text-xs font-bold transition active:scale-95 text-center",
+              transactionType === TransactionType.Income
+                ? "bg-emerald-400 text-black shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Thu nhập (+)
+          </button>
+        </div>
+
+        {/* Dòng 3: 3 nút thao tác chia đều 3 cột, full width cân đối, không bao giờ bị cắt chữ */}
         <div className="grid grid-cols-3 gap-2 w-full">
           {/* Smart Paste Button */}
           <button
             type="button"
             onClick={handleSmartPaste}
-            className="flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm text-center"
+            className="flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold whitespace-nowrap active:scale-95 transition shadow-sm text-center"
             title="Dán thông báo MoMo / Bank để tự động điền"
           >
             <Clipboard size={13} className="text-zinc-300 shrink-0" />
-            <span className="truncate">Dán</span>
+            <span>Dán</span>
           </button>
 
           {/* MoMo & Cake Gmail Sync Button */}
@@ -571,22 +569,22 @@ export default function Dashboard() {
             type="button"
             onClick={handleSyncMoMoCake}
             disabled={isSyncing}
-            className="flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm disabled:opacity-50 text-center"
+            className="flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold whitespace-nowrap active:scale-95 transition shadow-sm disabled:opacity-50 text-center"
             title="Đồng bộ biến động số dư từ MoMo & Cake qua Gmail"
           >
             <RefreshCw size={13} className={cn("text-zinc-400 shrink-0", isSyncing && "animate-spin")} />
-            <span className="truncate">{isSyncing ? "Quét..." : "MoMo & Cake"}</span>
+            <span>{isSyncing ? "Quét..." : "Quét MoMo"}</span>
           </button>
 
           {/* Locket Snap Quick Camera Button */}
           <button
             type="button"
             onClick={() => setIsCameraModalOpen(true)}
-            className="flex items-center justify-center gap-1.5 py-2 px-1 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold transition active:scale-95 shadow-sm text-center"
+            className="flex items-center justify-center gap-1.5 py-2 px-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-semibold whitespace-nowrap active:scale-95 transition shadow-sm text-center"
             title="Chụp ảnh hóa đơn phong cách Locket"
           >
             <Camera size={13} className="text-zinc-300 shrink-0" />
-            <span className="truncate">Locket Snap</span>
+            <span>Chụp bill</span>
           </button>
         </div>
 

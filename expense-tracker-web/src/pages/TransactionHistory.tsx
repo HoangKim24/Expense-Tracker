@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, RefreshCw, Smartphone } from "lucide-react";
+import { Search, Camera, Trash2, Tag, Calendar, Receipt, RefreshCw, Smartphone, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -162,82 +162,82 @@ export default function TransactionHistory() {
     { value: "month", label: "Tháng này" },
   ];
 
-  const filters: Array<{ value: FilterMode; label: string; icon?: typeof Camera | typeof RefreshCw | typeof Smartphone }> = [
-    { value: "all", label: "Tất cả chi tiêu" },
+  const sourceFilters: Array<{ value: FilterMode; label: string; icon?: typeof Camera | typeof RefreshCw | typeof Smartphone }> = [
     { value: "momo", label: "Ví MoMo", icon: Smartphone },
-    { value: "cake", label: "Cake VPBank" },
+    { value: "cake", label: "Cake" },
     { value: "receipt", label: "Có ảnh bill", icon: Camera },
     { value: "manual", label: "Nhập tay" },
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4 pb-12">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-black text-white tracking-tight">Lịch Sử Giao Dịch</h1>
-          <p className="text-xs text-zinc-400">
-            {isLoading ? "Đang tải dữ liệu..." : `${filteredData.length} giao dịch`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* MoMo & Cake Sync Button */}
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 px-4 pt-4 pb-12">
+      {/* Header & Compact Summary Card */}
+      <section className="rounded-2xl border border-white/[0.08] bg-zinc-950 p-3.5 shadow-sm space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xs font-bold text-white tracking-wider uppercase">
+              Lịch Sử Giao Dịch
+            </h1>
+            <span className="text-[11px] text-zinc-500 font-medium">
+              ({isLoading ? "..." : `${filteredData.length}`})
+            </span>
+          </div>
+
+          {/* MoMo & Cake Sync Button - compact */}
           <button
             type="button"
             onClick={handleSyncMoMoCake}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] hover:bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:text-white transition active:scale-95 disabled:opacity-50"
             title="Đồng bộ biến động số dư từ MoMo & Cake"
           >
-            <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "Đang quét..." : "Đồng bộ MoMo/Cake"}</span>
+            <RefreshCw size={11} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
+            <span>{isSyncing ? "Quét..." : "Đồng bộ MoMo/Cake"}</span>
           </button>
         </div>
-      </div>
 
-      {/* Summary Card - Matte Dark Glass */}
-      <section className="rounded-2xl border border-white/[0.08] bg-zinc-950 p-4 shadow-sm flex items-center justify-between">
-        <div>
-          <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
-            {typeFilter === "income"
-              ? "Tổng Thu Nhập"
-              : typeFilter === "expense"
-              ? summaryTitle
-              : "Dòng Tiền Thuần (Thu - Chi)"}
-          </span>
-          <span
-            className={cn(
-              "text-2xl font-black tracking-tight mt-0.5 block",
-              typeFilter === "income"
-                ? "text-emerald-400"
+        {/* Amount Metrics */}
+        <div className="flex items-baseline justify-between pt-1 border-t border-white/[0.06]">
+          <div>
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+              {typeFilter === "income"
+                ? "Tổng Thu Nhập"
                 : typeFilter === "expense"
-                ? "text-white"
-                : netBalance >= 0
-                ? "text-emerald-400"
-                : "text-rose-400"
-            )}
-          >
-            {typeFilter === "income"
-              ? `+${formatCurrency(totalIncome)}`
-              : typeFilter === "expense"
-              ? `-${formatCurrency(totalExpense)}`
-              : `${netBalance >= 0 ? "+" : ""}${formatCurrency(netBalance)}`}
-          </span>
+                ? summaryTitle
+                : "Dòng Tiền Thuần"}
+            </span>
+            <span
+              className={cn(
+                "text-2xl font-black tracking-tight block",
+                typeFilter === "income"
+                  ? "text-emerald-400"
+                  : typeFilter === "expense"
+                  ? "text-white"
+                  : netBalance >= 0
+                  ? "text-emerald-400"
+                  : "text-rose-400"
+              )}
+            >
+              {typeFilter === "income"
+                ? `+${formatCurrency(totalIncome)}`
+                : typeFilter === "expense"
+                ? `-${formatCurrency(totalExpense)}`
+                : `${netBalance >= 0 ? "+" : ""}${formatCurrency(netBalance)}`}
+            </span>
+          </div>
+
           {typeFilter === "all" && (
-            <div className="flex items-center gap-3 mt-1.5 text-[11px]">
-              <span className="text-emerald-400 font-semibold">Thu: +{formatCurrency(totalIncome)}</span>
-              <span className="text-zinc-400 font-semibold">Chi: -{formatCurrency(totalExpense)}</span>
+            <div className="text-right text-[11px] space-y-0.5">
+              <div className="text-emerald-400 font-bold">Thu: +{formatCurrency(totalIncome)}</div>
+              <div className="text-zinc-400 font-semibold">Chi: -{formatCurrency(totalExpense)}</div>
             </div>
           )}
         </div>
-        <span className="p-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white">
-          <ArrowUpRight size={20} />
-        </span>
       </section>
 
-      {/* Search & Filter Chips */}
-      <section className="space-y-3">
-        {/* Type Filter: Tất cả | Chi tiêu (-) | Thu nhập (+) */}
+      {/* Streamlined Filters */}
+      <section className="space-y-2.5">
+        {/* Row 1: Type Filter: Tất cả | Chi tiêu (-) | Thu nhập (+) */}
         <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
           <button
             type="button"
@@ -279,8 +279,38 @@ export default function TransactionHistory() {
             Thu nhập (+)
           </button>
         </div>
-        {/* Period Filter (Hôm nay / Tuần này / Tháng này / Tất cả) */}
-        <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
+
+        {/* Row 2: Search Bar */}
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+            <Search size={14} className="text-zinc-500" />
+          </div>
+          <input
+            type="text"
+            placeholder="Tìm kiếm giao dịch..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            className="w-full h-10 rounded-2xl border border-white/[0.08] bg-zinc-950 py-2 pl-9 pr-9 text-xs font-medium text-white outline-none transition focus:border-white/30 placeholder-zinc-500"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setPage(1);
+              }}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 hover:text-white"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Row 3: Horizontal Scrollable Chips Row (Period + Source) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           {periodFilters.map((p) => {
             const isSelected = periodFilter === p.value;
             return (
@@ -292,38 +322,20 @@ export default function TransactionHistory() {
                   setPage(1);
                 }}
                 className={cn(
-                  "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                  "shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95",
                   isSelected
                     ? "bg-white text-black shadow-sm font-bold"
-                    : "text-zinc-400 hover:text-white"
+                    : "bg-zinc-950 text-zinc-400 border border-white/[0.08] hover:text-white"
                 )}
               >
                 {p.label}
               </button>
             );
           })}
-        </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-            <Search size={15} className="text-zinc-500" />
-          </div>
-          <input
-            type="text"
-            placeholder="Tìm theo nội dung, danh mục, số tiền..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-            className="w-full min-h-[42px] rounded-2xl border border-white/[0.08] bg-zinc-950 py-2.5 pl-9 pr-4 text-base sm:text-xs font-medium text-white outline-none transition focus:border-white/30 placeholder-zinc-600"
-          />
-        </div>
+          <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
 
-        {/* Source Filter chips - Segmented Controls */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {filters.map((filter) => {
+          {sourceFilters.map((filter) => {
             const Icon = filter.icon;
             const isSelected = filterMode === filter.value;
             return (
@@ -331,18 +343,18 @@ export default function TransactionHistory() {
                 type="button"
                 key={filter.value}
                 onClick={() => {
-                  setFilterMode(filter.value);
+                  setFilterMode(isSelected ? "all" : filter.value);
                   setPage(1);
                 }}
                 className={cn(
-                  "shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95",
+                  "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95",
                   isSelected
                     ? "bg-white text-black shadow-sm font-bold"
                     : "bg-zinc-950 text-zinc-400 border border-white/[0.08] hover:text-white"
                 )}
               >
                 {Icon && <Icon size={12} />}
-                {filter.label}
+                <span>{filter.label}</span>
               </button>
             );
           })}

@@ -159,40 +159,43 @@ export default function MonthlyBudgetCard({
             </button>
           </div>
         ) : (
-          <div className="flex items-baseline justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-extrabold text-white tracking-tight">
-                  {formatCurrency(currentExpenseMonth)}
-                </span>
-                <span className="text-xs text-zinc-400 font-medium">
-                  / {formatCurrency(budget)}
-                </span>
+          <div className="grid grid-cols-2 gap-3 min-w-0">
+            {/* Cột Trái: Đã Chi & Hạn mức */}
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block truncate">
+                Đã chi tháng này
+              </span>
+              <div className="text-2xl font-black text-white tracking-tight truncate my-0.5">
+                {formatCurrency(currentExpenseMonth)}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <span className="truncate">Hạn mức: {formatCurrency(budget)}</span>
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition active:scale-95"
+                  className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition shrink-0 active:scale-95"
                   title="Thay đổi ngân sách tháng"
                 >
-                  <Pencil size={13} />
+                  <Pencil size={11} />
                 </button>
               </div>
-              <span className="text-[11px] text-zinc-400 font-medium mt-0.5 block">
-                Đã chi {Math.round(ratio * 100)}% hạn mức
-              </span>
             </div>
 
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+            {/* Cột Phải: Còn lại hoặc Vượt chi */}
+            <div className="min-w-0 text-right">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block truncate">
                 {isOver ? "Đã vượt chi" : "Còn lại được chi"}
               </span>
-              <span
+              <div
                 className={cn(
-                  "text-lg font-black tracking-tight",
+                  "text-2xl font-black tracking-tight truncate my-0.5",
                   isOver ? "text-rose-400" : "text-emerald-400"
                 )}
               >
                 {isOver ? `+${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
+              </div>
+              <span className="text-xs text-zinc-400 block truncate">
+                {isOver ? "Vượt ngân sách" : `Đã dùng ${percent}%`}
               </span>
             </div>
           </div>
@@ -200,8 +203,8 @@ export default function MonthlyBudgetCard({
       </div>
 
       {/* Progress Bar */}
-      <div className="space-y-1.5">
-        <div className="w-full h-2.5 rounded-full bg-zinc-900 border border-white/[0.06] overflow-hidden">
+      <div className="space-y-2 pt-0.5">
+        <div className="w-full h-2 rounded-full bg-zinc-900 border border-white/[0.06] overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percent}%` }}
@@ -211,17 +214,17 @@ export default function MonthlyBudgetCard({
         </div>
 
         {/* Dynamic Spend Advice per remaining day */}
-        <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-0.5">
+        <div className="flex items-center justify-between text-[11px] text-zinc-400">
           {isOver ? (
-            <span className="text-rose-400 font-medium flex items-center gap-1">
-              <AlertCircle size={11} /> Cần thắt chặt chi tiêu trong {daysLeft} ngày còn lại của tháng.
+            <span className="text-rose-400 font-medium flex items-center gap-1 truncate">
+              <AlertCircle size={11} className="shrink-0" /> Cần thắt chặt chi tiêu!
             </span>
           ) : (
-            <span>
-              Chi tối đa: <strong className="text-zinc-200">{formatCurrency(dailyAllowance)}/ngày</strong> trong {daysLeft} ngày còn lại
+            <span className="truncate">
+              Chi tối đa: <strong className="text-zinc-200">{formatCurrency(dailyAllowance)}/ngày</strong>
             </span>
           )}
-          <span className="text-zinc-400 text-[10px]">{percent}%</span>
+          <span className="text-zinc-400 shrink-0 font-medium text-[11px]">Còn {daysLeft} ngày</span>
         </div>
       </div>
     </section>

@@ -23,6 +23,7 @@ import {
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
 import ReceiptImage from "../components/ReceiptImage";
+import { deleteLocalReceipt } from "../lib/receiptStorage";
 
 export default function ReceiptSnaps() {
   const location = useLocation();
@@ -78,6 +79,12 @@ export default function ReceiptSnaps() {
 
   const handleDelete = async (id: string) => {
     try {
+      const target = receiptTransactions.find((t) => t.id === id);
+      if (target?.receiptImagePath) {
+        deleteLocalReceipt(target.receiptImagePath);
+      }
+      deleteLocalReceipt(id);
+
       await deleteTransaction(id);
       setReceiptTransactions((prev) => prev.filter((t) => t.id !== id));
       window.dispatchEvent(new CustomEvent("transaction-updated"));

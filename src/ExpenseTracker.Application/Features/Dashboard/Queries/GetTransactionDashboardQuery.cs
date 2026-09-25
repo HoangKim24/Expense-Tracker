@@ -43,6 +43,8 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
         var categoryMap = categories.ToDictionary(c => c.Id);
 
         var totalExpense = transactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
+        var totalIncome = transactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
+        var balance = totalIncome - totalExpense;
 
         var expenseCategories = transactions
             .Where(t => t.Type == TransactionType.Expense)
@@ -65,9 +67,9 @@ public class GetTransactionDashboardQueryHandler : IRequestHandler<GetTransactio
 
         return new DashboardMetricsDto
         {
-            TotalIncome = 0,
+            TotalIncome = totalIncome,
             TotalExpense = totalExpense,
-            Balance = -totalExpense,
+            Balance = balance,
             CategoryBreakdown = expenseCategories
         };
     }

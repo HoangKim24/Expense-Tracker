@@ -30,8 +30,10 @@ import {
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
 import QuickPresetsBar from "../components/QuickPresetsBar";
+import MonthlyBudgetCard from "../components/MonthlyBudgetCard";
 import { parseTransactionText, detectCategoryFromText, matchCategoryId } from "../lib/smartParser";
 import { isSameDay, isToday, isThisWeek, isThisMonth, formatWeekRange } from "../lib/dateUtils";
+import { deleteLocalReceipt } from "../lib/receiptStorage";
 
 type DayTotal = { label: string; amount: number; isToday: boolean };
 type DashboardPeriod = "today" | "week" | "month";
@@ -45,6 +47,7 @@ export default function Dashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
 
   // Inline Quick Add Form State
+  const [transactionType, setTransactionType] = useState<number>(TransactionType.Expense);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
@@ -224,7 +227,7 @@ export default function Dashboard() {
     const numericAmount = Number(amount.replace(/\D/g, ""));
     if (!numericAmount || numericAmount <= 0) {
       toast.warning("Chưa nhập số tiền", {
-        description: "Vui lòng nhập số tiền chi tiêu lớn hơn 0đ.",
+        description: `Vui lòng nhập số tiền ${transactionType === TransactionType.Income ? "thu nhập" : "chi tiêu"} lớn hơn 0đ.`,
       });
       return;
     }
@@ -232,13 +235,13 @@ export default function Dashboard() {
     setIsSubmitting(true);
     try {
       const selectedCat = categories.find((c) => c.id === selectedCategoryId);
-      const defaultDesc = selectedCat ? selectedCat.name : "Khoản chi tiêu";
+      const defaultDesc = selectedCat ? selectedCat.name : (transactionType === TransactionType.Income ? "Khoản thu nhập" : "Khoản chi tiêu");
 
       await createTransaction({
         amount: numericAmount,
         transactionDate: new Date().toISOString(),
         description: note.trim() || defaultDesc,
-        type: TransactionType.Expense,
+        type: transactionType as any,
         source: TransactionSource.Manual,
         categoryId: selectedCategoryId || null,
       });
@@ -247,10 +250,11 @@ export default function Dashboard() {
         particleCount: 50,
         spread: 55,
         origin: { y: 0.7 },
-        colors: ["#ffffff", "#f4f4f5", "#e4e4e7", "#a1a1aa"],
+        colors: transactionType === TransactionType.Income ? ["#34d399", "#10b981", "#ffffff"] : ["#ffffff", "#f4f4f5", "#e4e4e7", "#a1a1aa"],
       });
 
-      toast.success(`Đã ghi sổ: -${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ`, {
+      const sign = transactionType === TransactionType.Income ? "+" : "-";
+      toast.success(`Đã ghi sổ: ${sign}${new Intl.NumberFormat("vi-VN").format(numericAmount)}đ`, {
         description: note.trim() || defaultDesc,
       });
 
@@ -269,6 +273,12 @@ export default function Dashboard() {
   // Delete transaction
   const handleDelete = async (id: string) => {
     try {
+      const target = transactions.find((t) => t.id === id);
+      if (target?.receiptImagePath) {
+        deleteLocalReceipt(target.receiptImagePath);
+      }
+      deleteLocalReceipt(id);
+
       await deleteTransaction(id);
       loadData();
       toast.success("Đã xóa giao dịch thành công!", {
@@ -285,40 +295,63 @@ export default function Dashboard() {
   const weeklyTotals = useMemo(() => getWeeklyTotals(transactions), [transactions]);
   const maxWeeklyTotal = Math.max(...weeklyTotals.map((day) => day.amount), 1);
 
-  // Period Expense Totals (Hôm nay / Tuần này / Tháng này)
+  // Period Expense & Income Totals (Hôm nay / Tuần này / Tháng này)
   const periodData = useMemo(() => {
     const expenseTx = transactions.filter((t) => t.type === TransactionType.Expense);
-    const todayTx = expenseTx.filter((t) => isToday(t.transactionDate));
-    const weekTx = expenseTx.filter((t) => isThisWeek(t.transactionDate));
-    const monthTx = expenseTx.filter((t) => isThisMonth(t.transactionDate));
+    const incomeTx = transactions.filter((t) => t.type === TransactionType.Income);
 
-    const todayTotal = todayTx.reduce((sum, t) => sum + t.amount, 0);
-    const weekTotal = weekTx.reduce((sum, t) => sum + t.amount, 0);
-    const monthTotal = metrics?.totalExpense ?? monthTx.reduce((sum, t) => sum + t.amount, 0);
+    const todayExp = expenseTx.filter((t) => isToday(t.transactionDate));
+    const weekExp = expenseTx.filter((t) => isThisWeek(t.transactionDate));
+    const monthExp = expenseTx.filter((t) => isThisMonth(t.transactionDate));
+
+    const todayInc = incomeTx.filter((t) => isToday(t.transactionDate));
+    const weekInc = incomeTx.filter((t) => isThisWeek(t.transactionDate));
+    const monthInc = incomeTx.filter((t) => isThisMonth(t.transactionDate));
+
+    const todayExpTotal = todayExp.reduce((sum, t) => sum + t.amount, 0);
+    const weekExpTotal = weekExp.reduce((sum, t) => sum + t.amount, 0);
+    const monthExpTotal = metrics?.totalExpense ?? monthExp.reduce((sum, t) => sum + t.amount, 0);
+
+    const todayIncTotal = todayInc.reduce((sum, t) => sum + t.amount, 0);
+    const weekIncTotal = weekInc.reduce((sum, t) => sum + t.amount, 0);
+    const monthIncTotal = metrics?.totalIncome ?? monthInc.reduce((sum, t) => sum + t.amount, 0);
 
     if (dashboardPeriod === "today") {
       return {
         title: "Chi Tiêu Hôm Nay",
-        amount: todayTotal,
-        count: todayTx.length,
+        expense: todayExpTotal,
+        income: todayIncTotal,
+        balance: todayIncTotal - todayExpTotal,
+        count: todayExp.length + todayInc.length,
         subLabel: `Hôm nay, ${new Date().toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}`,
       };
     }
     if (dashboardPeriod === "week") {
       return {
         title: "Chi Tiêu Tuần Này",
-        amount: weekTotal,
-        count: weekTx.length,
+        expense: weekExpTotal,
+        income: weekIncTotal,
+        balance: weekIncTotal - weekExpTotal,
+        count: weekExp.length + weekInc.length,
         subLabel: `Tuần này (${formatWeekRange()})`,
       };
     }
     return {
       title: "Chi Tiêu Tháng Này",
-      amount: monthTotal,
-      count: monthTx.length,
+      expense: monthExpTotal,
+      income: monthIncTotal,
+      balance: monthIncTotal - monthExpTotal,
+      count: monthExp.length + monthInc.length,
       subLabel: new Date().toLocaleString("vi-VN", { month: "long", year: "numeric" }),
     };
   }, [transactions, metrics, dashboardPeriod]);
+
+  const monthTotalExpense = useMemo(() => {
+    if (metrics?.totalExpense !== undefined && metrics.totalExpense > 0) return metrics.totalExpense;
+    return transactions
+      .filter((t) => t.type === TransactionType.Expense && isThisMonth(t.transactionDate))
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, metrics]);
 
   // Dynamic Category Breakdown theo period (Hôm nay / Tuần này / Tháng này)
   const categoryBreakdown = useMemo(() => {
@@ -414,8 +447,43 @@ export default function Dashboard() {
             {periodData.title}
           </span>
           <p className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight my-1.5">
-            {isLoading ? "..." : formatCurrency(periodData.amount)}
+            {isLoading ? "..." : formatCurrency(periodData.expense)}
           </p>
+        </div>
+
+        {/* 3 Thẻ Chỉ Số Dòng Tiền (Thu nhập - Chi tiêu - Dòng tiền thuần) */}
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-white/[0.08]">
+          <div className="rounded-2xl bg-black/50 border border-white/[0.06] p-2.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Tổng Thu (+)
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-emerald-400 tracking-tight mt-0.5 block truncate">
+              {isLoading ? "..." : `+${formatCurrency(periodData.income)}`}
+            </span>
+          </div>
+
+          <div className="rounded-2xl bg-black/50 border border-white/[0.06] p-2.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Tổng Chi (-)
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-zinc-200 tracking-tight mt-0.5 block truncate">
+              {isLoading ? "..." : `-${formatCurrency(periodData.expense)}`}
+            </span>
+          </div>
+
+          <div className="rounded-2xl bg-black/50 border border-white/[0.06] p-2.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Số Dư Dòng Tiền
+            </span>
+            <span
+              className={cn(
+                "text-xs sm:text-sm font-black tracking-tight mt-0.5 block truncate",
+                periodData.balance >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}
+            >
+              {isLoading ? "..." : `${periodData.balance >= 0 ? "+" : ""}${formatCurrency(periodData.balance)}`}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.06] text-xs">
@@ -428,15 +496,61 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* 2. MẪU CHI TIÊU THƯỜNG GẶP 1-CHẠM (0.5 GIÂY) */}
+      {/* 2. NGÂN SÁCH CHI TIÊU THÁNG & CẢNH BÁO VƯỢT HẠN MỨC */}
+      <MonthlyBudgetCard 
+        currentExpenseMonth={monthTotalExpense} 
+        formatCurrency={formatCurrency} 
+      />
+
+      {/* 3. MẪU CHI TIÊU THƯỜNG GẶP 1-CHẠM (0.5 GIÂY) */}
       <QuickPresetsBar categories={categories} onTransactionCreated={loadData} />
 
-      {/* 3. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
+      {/* 4. KHU VỰC NHẬP TIỀN TRỰC TIẾP TRÊN TRANG (INLINE QUICK ADD) */}
       <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-4 sm:p-5 shadow-xl space-y-3.5">
-        {/* Dòng 1: Tiêu đề */}
-        <div className="flex items-center gap-1.5">
-          <PlusCircle size={15} className="text-zinc-400" />
-          <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">Ghi Khoản Chi Nhanh</h2>
+        {/* Dòng 1: Tiêu đề & Switcher Chi tiêu / Thu nhập */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <PlusCircle size={15} className="text-zinc-400" />
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white">
+              {transactionType === TransactionType.Income ? "Ghi Khoản Thu Nhanh" : "Ghi Khoản Chi Nhanh"}
+            </h2>
+          </div>
+
+          {/* Switcher Tab */}
+          <div className="flex p-0.5 rounded-xl bg-black border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType(TransactionType.Expense);
+                const expCat = categories.find((c) => c.type === TransactionType.Expense);
+                if (expCat) setSelectedCategoryId(expCat.id);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95",
+                transactionType === TransactionType.Expense
+                  ? "bg-white text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Chi tiêu (-)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType(TransactionType.Income);
+                const incCat = categories.find((c) => c.type === TransactionType.Income) || categories[0];
+                if (incCat) setSelectedCategoryId(incCat.id);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition active:scale-95",
+                transactionType === TransactionType.Income
+                  ? "bg-emerald-400 text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Thu nhập (+)
+            </button>
+          </div>
         </div>
 
         {/* Dòng 2: 3 nút thao tác chia đều 3 cột, full width cân đối */}
@@ -488,7 +602,12 @@ export default function Dashboard() {
                 const val = e.target.value.replace(/\D/g, "");
                 setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
               }}
-              className="w-full rounded-2xl bg-black border border-white/10 px-4 py-3.5 text-2xl font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 text-right pr-14"
+              className={cn(
+                "w-full rounded-2xl bg-black border px-4 py-3.5 text-2xl font-bold placeholder-zinc-600 focus:outline-none text-right pr-14 transition-colors",
+                transactionType === TransactionType.Income
+                  ? "text-emerald-400 border-emerald-500/30 focus:border-emerald-500/60"
+                  : "text-white border-white/10 focus:border-white/30"
+              )}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">
               VNĐ
@@ -497,14 +616,14 @@ export default function Dashboard() {
 
           {/* Chip cộng nhanh */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {[10000, 20000, 50000, 100000, 200000, 500000].map((quick) => (
+            {[10000, 20000, 50000, 100000, 200000, 500000, 1000000].map((quick) => (
               <button
                 key={quick}
                 type="button"
                 onClick={() => handleQuickAddAmount(quick)}
                 className="shrink-0 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95"
               >
-                +{quick >= 1000 ? `${quick / 1000}k` : quick}
+                +{quick >= 1000000 ? `${quick / 1000000}tr` : quick >= 1000 ? `${quick / 1000}k` : quick}
               </button>
             ))}
           </div>
@@ -516,7 +635,7 @@ export default function Dashboard() {
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
               {categories
-                .filter((cat) => cat.type === TransactionType.Expense)
+                .filter((cat) => cat.type === transactionType || (!cat.type && transactionType === TransactionType.Expense))
                 .map((cat) => {
                   const isSelected = selectedCategoryId === cat.id;
                   return (
@@ -526,7 +645,9 @@ export default function Dashboard() {
                       onClick={() => setSelectedCategoryId(cat.id)}
                       className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition border active:scale-95 ${
                         isSelected
-                          ? "bg-white text-black font-bold border-white shadow-sm"
+                          ? transactionType === TransactionType.Income
+                            ? "bg-emerald-400 text-black font-bold border-emerald-400 shadow-sm"
+                            : "bg-white text-black font-bold border-white shadow-sm"
                           : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
                       }`}
                     >
@@ -545,7 +666,7 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Ghi chú (Gõ bún, cà phê, grab...)"
+              placeholder={transactionType === TransactionType.Income ? "Ghi chú (Lương, thưởng, chuyển khoản...)" : "Ghi chú (Cơm trưa, cà phê, grab, xăng...)"}
               value={note}
               onChange={(e) => handleNoteChange(e.target.value)}
               className="flex-1 min-w-0 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-sm sm:text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"
@@ -553,9 +674,14 @@ export default function Dashboard() {
             <button
               type="submit"
               disabled={isSubmitting || !amount}
-              className="shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 active:scale-95 font-bold text-xs text-black shadow-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none"
+              className={cn(
+                "shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl active:scale-95 font-bold text-xs shadow-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none",
+                transactionType === TransactionType.Income
+                  ? "bg-emerald-400 hover:bg-emerald-300 text-black"
+                  : "bg-white hover:bg-zinc-200 text-black"
+              )}
             >
-              <CheckCircle2 size={15} /> Ghi Sổ
+              <CheckCircle2 size={15} /> {transactionType === TransactionType.Income ? "Ghi Thu (+)" : "Ghi Sổ (-)"}
             </button>
           </div>
         </form>

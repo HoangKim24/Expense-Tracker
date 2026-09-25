@@ -49,6 +49,44 @@ export async function saveLocalReceipt(key: string, dataUrl: string): Promise<vo
 }
 
 /**
+ * Xóa ảnh hóa đơn khỏi IndexedDB khi giao dịch bị xóa để tránh rác bộ nhớ cục bộ
+ */
+export async function deleteLocalReceipt(key?: string | null): Promise<void> {
+  if (!key) return;
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+
+      // Xóa theo key trực tiếp
+      store.delete(key);
+
+      // Nếu là URL tuyệt đối, dọn luôn pathname và filename
+      try {
+        if (key.startsWith("http://") || key.startsWith("https://")) {
+          const parsed = new URL(key);
+          store.delete(parsed.pathname);
+          const fileName = parsed.pathname.split("/").pop();
+          if (fileName) store.delete(fileName);
+        }
+      } catch {}
+
+      // Nếu key có dạng /uploads/xxx.jpg
+      const fileName = key.split("/").pop();
+      if (fileName && fileName !== key) {
+        store.delete(fileName);
+      }
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    // IndexedDB safe fallback
+  }
+}
+
+/**
  * Lấy ảnh hóa đơn lưu cục bộ trong IndexedDB
  */
 export async function getLocalReceipt(key?: string | null): Promise<string | null> {

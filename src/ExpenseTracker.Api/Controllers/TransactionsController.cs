@@ -34,10 +34,32 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteTransaction(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteTransaction(
+        Guid id, 
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new DeleteTransactionCommand(id), cancellationToken);
-        return Ok(new { success = result });
+        var receiptPath = await _mediator.Send(new DeleteTransactionCommand(id), cancellationToken);
+
+        if (!string.IsNullOrEmpty(receiptPath) && receiptPath.StartsWith("/uploads/"))
+        {
+            try
+            {
+                var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+                var localFile = Path.Combine(webRoot, receiptPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(localFile))
+                {
+                    System.IO.File.Delete(localFile);
+                    _logger.LogInformation("Deleted local receipt file on server: {Path}", localFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not delete local receipt file: {Path}", receiptPath);
+            }
+        }
+
+        return Ok(new { success = true });
     }
 
     [HttpPost("upload-receipt")]

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import QuickLogDrawer from "./QuickLogDrawer";
+import { lockApp } from "./PinLockGuard";
 
 export default function MainLayout() {
   const location = useLocation();
@@ -49,29 +50,45 @@ export default function MainLayout() {
             </div>
           </div>
 
-          {/* Nút làm mới phiên bản web tức thì (xóa cache / tải bản mới nhất) */}
-          <button
-            type="button"
-            onClick={async () => {
-              toast.info("Đang kiểm tra & cập nhật bản mới nhất...");
-              if ("serviceWorker" in navigator) {
-                try {
-                  const regs = await navigator.serviceWorker.getRegistrations();
-                  for (const reg of regs) {
-                    await reg.update();
+          <div className="flex items-center gap-2">
+            {/* Nút Khóa sổ ngay */}
+            <button
+              type="button"
+              onClick={() => {
+                lockApp();
+                toast.info("Đã khóa sổ an toàn.");
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-400 hover:text-white text-xs font-medium transition active:scale-95 shadow-sm"
+              title="Khóa sổ ngay"
+            >
+              <Lock size={12} className="text-zinc-400" />
+              <span className="text-[11px]">Khóa</span>
+            </button>
+
+            {/* Nút làm mới phiên bản web tức thì (xóa cache / tải bản mới nhất) */}
+            <button
+              type="button"
+              onClick={async () => {
+                toast.info("Đang kiểm tra & cập nhật bản mới nhất...");
+                if ("serviceWorker" in navigator) {
+                  try {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (const reg of regs) {
+                      await reg.update();
+                    }
+                  } catch {
+                    // ignore
                   }
-                } catch {
-                  // ignore
                 }
-              }
-              window.location.reload();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition active:scale-95 shadow-sm"
-            title="Tải lại để nhận cập nhật mới nhất"
-          >
-            <RefreshCw size={13} className="text-zinc-400" />
-            <span className="text-[11px]">Làm mới</span>
-          </button>
+                window.location.reload();
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-400 hover:text-white text-xs font-medium transition active:scale-95 shadow-sm"
+              title="Tải lại để nhận cập nhật mới nhất"
+            >
+              <RefreshCw size={12} className="text-zinc-400" />
+              <span className="text-[11px]">Tải lại</span>
+            </button>
+          </div>
         </div>
       </header>
 

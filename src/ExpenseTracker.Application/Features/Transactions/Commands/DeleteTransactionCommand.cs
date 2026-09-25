@@ -5,7 +5,7 @@ using MediatR;
 
 namespace ExpenseTracker.Application.Features.Transactions.Commands;
 
-public class DeleteTransactionCommand : IRequest<bool>
+public class DeleteTransactionCommand : IRequest<string?>
 {
     public Guid Id { get; set; }
 
@@ -15,7 +15,7 @@ public class DeleteTransactionCommand : IRequest<bool>
     }
 }
 
-public class DeleteTransactionCommandHandler : IRequestHandler<DeleteTransactionCommand, bool>
+public class DeleteTransactionCommandHandler : IRequestHandler<DeleteTransactionCommand, string?>
 {
     private readonly IRepository<Transaction> _transactionRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -28,7 +28,7 @@ public class DeleteTransactionCommandHandler : IRequestHandler<DeleteTransaction
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<bool> Handle(DeleteTransactionCommand request, CancellationToken cancellationToken)
+    public async Task<string?> Handle(DeleteTransactionCommand request, CancellationToken cancellationToken)
     {
         var transaction = await _transactionRepository.GetByIdAsync(request.Id, cancellationToken);
         if (transaction == null)
@@ -36,9 +36,11 @@ public class DeleteTransactionCommandHandler : IRequestHandler<DeleteTransaction
             throw new NotFoundException(nameof(Transaction), request.Id);
         }
 
+        var receiptImagePath = transaction.ReceiptImagePath;
+
         await _transactionRepository.DeleteAsync(transaction, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return true;
+        return receiptImagePath;
     }
 }

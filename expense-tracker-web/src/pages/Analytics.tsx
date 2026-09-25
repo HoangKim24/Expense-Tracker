@@ -109,10 +109,14 @@ export default function Analytics() {
     return transactions;
   }, [transactions, timeRange]);
 
-  // 2. Tổng chi & phân bổ danh mục
+  // 2. Tổng thu, tổng chi, số dư dòng tiền & phân bổ danh mục
   const stats = useMemo(() => {
     const expenseTx = filteredTransactions.filter((t) => t.type === TransactionType.Expense);
+    const incomeTx = filteredTransactions.filter((t) => t.type === TransactionType.Income);
     const totalExpense = expenseTx.reduce((sum, t) => sum + t.amount, 0);
+    const totalIncome = incomeTx.reduce((sum, t) => sum + t.amount, 0);
+    const balance = totalIncome - totalExpense;
+    const savingsRate = totalIncome > 0 ? Math.max(0, Math.round(((totalIncome - totalExpense) / totalIncome) * 100)) : 0;
 
     const categoryMap: Record<string, { amount: number; color?: string }> = {};
     expenseTx.forEach((t) => {
@@ -132,7 +136,7 @@ export default function Analytics() {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    return { totalExpense, categoryBreakdown };
+    return { totalExpense, totalIncome, balance, savingsRate, categoryBreakdown };
   }, [filteredTransactions]);
 
   // 3. Chi tiêu 7 ngày của tuần này (T2→CN)
@@ -458,6 +462,59 @@ export default function Analytics() {
           })}
         </div>
       </div>
+
+      {/* ──────────────────────────────────────────── */}
+      {/* SECTION: Dòng Tiền & Tỷ Lệ Tiết Kiệm        */}
+      {/* ──────────────────────────────────────────── */}
+      <section className="rounded-3xl bg-zinc-950 border border-white/[0.08] p-5 shadow-2xl space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300">
+              <PieChart size={14} />
+            </span>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+              Dòng Tiền & Tiết Kiệm
+            </h2>
+          </div>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-zinc-300">
+            Tiết kiệm: <strong className={stats.savingsRate >= 20 ? "text-emerald-400" : "text-zinc-200"}>{stats.savingsRate}%</strong>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <div className="p-3 rounded-2xl bg-black/60 border border-white/[0.06]">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Tổng Thu (+)
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-emerald-400 tracking-tight mt-0.5 block truncate">
+              +{formatCurrency(stats.totalIncome)}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-black/60 border border-white/[0.06]">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Tổng Chi (-)
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-zinc-200 tracking-tight mt-0.5 block truncate">
+              -{formatCurrency(stats.totalExpense)}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-black/60 border border-white/[0.06]">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+              Số Dư Thuần
+            </span>
+            <span
+              className={cn(
+                "text-xs sm:text-sm font-black tracking-tight mt-0.5 block truncate",
+                stats.balance >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}
+            >
+              {stats.balance >= 0 ? "+" : ""}{formatCurrency(stats.balance)}
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* ──────────────────────────────────────────── */}
       {/* SECTION: Ngân Sách Tuần                     */}

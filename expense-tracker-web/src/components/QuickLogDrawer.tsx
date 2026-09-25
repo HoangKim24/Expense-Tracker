@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { cn } from "../lib/utils";
 import { 
   getCategories, 
   createTransaction, 
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
+  const [transactionType, setTransactionType] = useState<number>(TransactionType.Expense);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -46,7 +48,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
         .then((cats) => {
           setCategories(cats);
           if (cats.length > 0 && !selectedCategoryId) {
-            const defaultCat = cats.find((c) => c.name.includes("Ăn") || c.name.includes("Cà phê")) || cats[0];
+            const defaultCat = cats.find((c) => c.type === transactionType) || cats[0];
             setSelectedCategoryId(defaultCat.id);
           }
         })
@@ -147,8 +149,8 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
       await createTransaction({
         amount: numeric,
         transactionDate: new Date().toISOString(),
-        description: description.trim() || "Chi tiêu",
-        type: TransactionType.Expense,
+        description: description.trim() || (transactionType === TransactionType.Income ? "Thu nhập" : "Chi tiêu"),
+        type: transactionType as any,
         source: selectedSource as any,
         categoryId: selectedCategoryId || null,
       });
@@ -157,11 +159,12 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
         particleCount: 60,
         spread: 65,
         origin: { y: 0.7 },
-        colors: ["#ffffff", "#e4e4e7", "#a1a1aa"],
+        colors: transactionType === TransactionType.Income ? ["#34d399", "#10b981", "#ffffff"] : ["#ffffff", "#e4e4e7", "#a1a1aa"],
       });
 
-      toast.success(`Đã ghi sổ: -${new Intl.NumberFormat("vi-VN").format(numeric)}đ`, {
-        description: description.trim() || "Khoản chi tiêu",
+      const sign = transactionType === TransactionType.Income ? "+" : "-";
+      toast.success(`Đã ghi sổ: ${sign}${new Intl.NumberFormat("vi-VN").format(numeric)}đ`, {
+        description: description.trim() || (transactionType === TransactionType.Income ? "Khoản thu nhập" : "Khoản chi tiêu"),
       });
 
       window.dispatchEvent(new CustomEvent("transaction-updated"));
@@ -185,7 +188,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 28, stiffness: 320 }}
-          className="relative z-10 w-full max-w-lg mx-auto rounded-t-[36px] bg-zinc-950 border-t border-white/10 p-5 pb-9 space-y-4 shadow-2xl"
+          className="relative z-10 w-full max-w-lg mx-auto rounded-t-[36px] bg-zinc-950 border-t border-white/10 p-5 pb-9 space-y-3.5 shadow-2xl"
         >
           {/* Top handle bar */}
           <div className="w-12 h-1.5 rounded-full bg-zinc-800 mx-auto" />
@@ -193,7 +196,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
           {/* Header & Smart Paste Button */}
           <div className="flex items-center justify-between">
             <h2 className="text-base font-black text-white tracking-tight">
-              Ghi Khoản Chi Nhanh
+              {transactionType === TransactionType.Income ? "Ghi Khoản Thu Nhập" : "Ghi Khoản Chi Tiêu"}
             </h2>
 
             <div className="flex items-center gap-2">
@@ -204,7 +207,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
                 title="Tự động bóc tách tin nhắn MoMo/Bank vừa sao chép"
               >
                 <Clipboard size={13} className="text-zinc-300" />
-                <span>Dán thông báo</span>
+                <span>Dán</span>
               </button>
 
               <button
@@ -217,7 +220,43 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Switcher Chi tiêu (-) / Thu nhập (+) */}
+          <div className="flex p-1 rounded-2xl bg-black border border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType(TransactionType.Expense);
+                const expCat = categories.find((c) => c.type === TransactionType.Expense);
+                if (expCat) setSelectedCategoryId(expCat.id);
+              }}
+              className={cn(
+                "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                transactionType === TransactionType.Expense
+                  ? "bg-white text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Chi tiêu (-)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTransactionType(TransactionType.Income);
+                const incCat = categories.find((c) => c.type === TransactionType.Income) || categories[0];
+                if (incCat) setSelectedCategoryId(incCat.id);
+              }}
+              className={cn(
+                "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+                transactionType === TransactionType.Income
+                  ? "bg-emerald-400 text-black font-bold shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              )}
+            >
+              Thu nhập (+)
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* Ô nhập tiền Native Phone Keypad */}
             <div className="relative">
               <input
@@ -230,7 +269,12 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
                   const val = e.target.value.replace(/\D/g, "");
                   setAmount(val ? new Intl.NumberFormat("vi-VN").format(parseInt(val, 10)) : "");
                 }}
-                className="w-full rounded-2xl bg-black border border-white/10 px-4 py-3.5 text-3xl font-extrabold text-white placeholder-zinc-700 focus:outline-none focus:border-white/40 text-right pr-14"
+                className={cn(
+                  "w-full rounded-2xl bg-black border px-4 py-3.5 text-3xl font-extrabold placeholder-zinc-700 focus:outline-none text-right pr-14 transition-colors",
+                  transactionType === TransactionType.Income
+                    ? "text-emerald-400 border-emerald-500/30 focus:border-emerald-500/60"
+                    : "text-white border-white/10 focus:border-white/40"
+                )}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">
                 VNĐ
@@ -239,23 +283,23 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
 
             {/* Dãy chip cộng nhanh */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {[10000, 20000, 50000, 100000, 200000, 500000].map((val) => (
+              {[10000, 20000, 50000, 100000, 200000, 500000, 1000000].map((val) => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => handleQuickAdd(val)}
                   className="shrink-0 px-3 py-1.5 rounded-xl bg-black border border-white/[0.08] hover:border-white/20 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95"
                 >
-                  +{val >= 1000 ? `${val / 1000}k` : val}
+                  +{val >= 1000000 ? `${val / 1000000}tr` : val >= 1000 ? `${val / 1000}k` : val}
                 </button>
               ))}
             </div>
 
-            {/* Ô nhập ghi chú với Auto-Category */}
+            {/* Ô nhập ghi chú */}
             <div>
               <input
                 type="text"
-                placeholder="Ghi chú (Gõ cà phê, grab, cơm trưa... để tự đoán danh mục)"
+                placeholder={transactionType === TransactionType.Income ? "Ghi chú (Lương, thưởng, chuyển khoản, lợi nhuận...)" : "Ghi chú (Cơm trưa, cà phê, grab, siêu thị...)"}
                 value={description}
                 onChange={(e) => handleDescriptionChange(e.target.value)}
                 className="w-full rounded-2xl bg-black border border-white/10 px-4 py-3 text-xs font-medium text-white placeholder-zinc-600 focus:outline-none focus:border-white/30"
@@ -268,34 +312,38 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
                 <Tag size={11} /> Danh mục
               </span>
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {categories.map((cat) => {
-                  const isSelected = selectedCategoryId === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCategoryId(cat.id);
-                        setIsManualCategoryOverride(true);
-                      }}
-                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border active:scale-95 ${
-                        isSelected
-                          ? "bg-white text-black font-bold border-white shadow-sm"
-                          : "bg-black border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
-                      }`}
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: cat.color || "#a1a1aa" }}
-                      />
-                      <span>{cat.name}</span>
-                    </button>
-                  );
-                })}
+                {categories
+                  .filter((cat) => cat.type === transactionType || (!cat.type && transactionType === TransactionType.Expense))
+                  .map((cat) => {
+                    const isSelected = selectedCategoryId === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategoryId(cat.id);
+                          setIsManualCategoryOverride(true);
+                        }}
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border active:scale-95 ${
+                          isSelected
+                            ? transactionType === TransactionType.Income
+                              ? "bg-emerald-400 text-black font-bold border-emerald-400 shadow-sm"
+                              : "bg-white text-black font-bold border-white shadow-sm"
+                            : "bg-black border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: cat.color || "#a1a1aa" }}
+                        />
+                        <span>{cat.name}</span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
-            {/* Nguồn thanh toán (Nạp từ MoMo / Cake / Tiền mặt) */}
+            {/* Nguồn thanh toán */}
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
                 <CreditCard size={11} /> Nguồn tiền
@@ -329,9 +377,14 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
             <button
               type="submit"
               disabled={isSubmitting || !amount}
-              className="w-full py-3.5 rounded-2xl bg-white hover:bg-zinc-200 active:scale-98 text-black font-bold text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none mt-2"
+              className={cn(
+                "w-full py-3.5 rounded-2xl active:scale-98 text-black font-bold text-xs uppercase tracking-wider shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none mt-2",
+                transactionType === TransactionType.Income
+                  ? "bg-emerald-400 hover:bg-emerald-300"
+                  : "bg-white hover:bg-zinc-200"
+              )}
             >
-              <Check size={16} /> Ghi Vào Sổ Ngay
+              <Check size={16} /> {transactionType === TransactionType.Income ? "Ghi Khoản Thu (+)" : "Ghi Khoản Chi (-)"}
             </button>
           </form>
         </motion.div>

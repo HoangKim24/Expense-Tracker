@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import ReceiptSnaps from "./pages/ReceiptSnaps";
 import Analytics from "./pages/Analytics";
 import TransactionHistory from "./pages/TransactionHistory";
+import PinLockGuard from "./components/PinLockGuard";
 
 // Tự động cập nhật khi có phiên bản mới trên Vercel hoặc PWA Service Worker
 if (typeof window !== "undefined") {
@@ -40,16 +41,18 @@ function App() {
           duration: 3000,
         }}
       />
-      <Router>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="snaps" element={<ReceiptSnaps />} />
-            <Route path="history" element={<TransactionHistory />} />
-            <Route path="analytics" element={<Analytics />} />
-          </Route>
-        </Routes>
-      </Router>
+      <PinLockGuard>
+        <Router>
+          <Routes>
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="snaps" element={<ReceiptSnaps />} />
+              <Route path="history" element={<TransactionHistory />} />
+              <Route path="analytics" element={<Analytics />} />
+            </Route>
+          </Routes>
+        </Router>
+      </PinLockGuard>
     </>
   );
 }

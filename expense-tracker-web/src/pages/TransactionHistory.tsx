@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, Download, RefreshCw, Smartphone } from "lucide-react";
+import { Search, ArrowUpRight, Camera, Trash2, Tag, Calendar, Receipt, RefreshCw, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
@@ -12,16 +12,19 @@ import {
   TransactionSource, 
   type TransactionDto 
 } from "../lib/api";
+import { deleteLocalReceipt } from "../lib/receiptStorage";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import ReceiptImage from "../components/ReceiptImage";
 import { isToday, isThisWeek, isThisMonth, groupTransactionsByDate } from "../lib/dateUtils";
 
 type FilterMode = "all" | "receipt" | "momo" | "cake" | "manual";
 type PeriodFilter = "all" | "today" | "week" | "month";
+type TypeFilter = "all" | "expense" | "income";
 
 export default function TransactionHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
@@ -32,8 +35,7 @@ export default function TransactionHistory() {
     setIsLoading(true);
     getTransactions()
       .then((data) => {
-        // Chỉ lấy các giao dịch chi tiêu
-        setTransactions(data.filter((t) => t.type === TransactionType.Expense));
+        setTransactions(data);
       })
       .catch(() => {
         toast.error("Không thể tải lịch sử giao dịch. Vui lòng thử lại!");
@@ -51,6 +53,12 @@ export default function TransactionHistory() {
 
   const handleDelete = async (id: string) => {
     try {
+      const target = transactions.find((t) => t.id === id);
+      if (target?.receiptImagePath) {
+        deleteLocalReceipt(target.receiptImagePath);
+      }
+      deleteLocalReceipt(id);
+
       await deleteTransaction(id);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       window.dispatchEvent(new CustomEvent("transaction-updated"));
@@ -102,39 +110,49 @@ export default function TransactionHistory() {
 
   const filteredData = useMemo(() => {
     return transactions.filter((t) => {
-      // 1. Lọc theo mốc thời gian (Hôm nay / Tuần này / Tháng này / Tất cả)
+      // 1. Lọc theo loại (Tất cả / Chi tiêu / Thu nhập)
+      if (typeFilter === "expense" && t.type !== TransactionType.Expense) return false;
+      if (typeFilter === "income" && t.type !== TransactionType.Income) return false;
+
+      // 2. Lọc theo mốc thời gian (Hôm nay / Tuần này / Tháng này / Tất cả)
       if (periodFilter === "today" && !isToday(t.transactionDate)) return false;
       if (periodFilter === "week" && !isThisWeek(t.transactionDate)) return false;
       if (periodFilter === "month" && !isThisMonth(t.transactionDate)) return false;
 
-      // 2. Lọc theo tìm kiếm
+      // 3. Lọc theo tìm kiếm
       const desc = (t.description || t.merchant || "").toLowerCase();
       const cat = (t.categoryName || "").toLowerCase();
       const matchesSearch = desc.includes(searchTerm.toLowerCase()) || cat.includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
 
-      // 3. Lọc theo nguồn
+      // 4. Lọc theo nguồn
       if (filterMode === "receipt") return !!t.receiptImagePath || t.source === TransactionSource.SnapReceipt;
       if (filterMode === "momo") return t.source === TransactionSource.MoMo;
       if (filterMode === "cake") return t.source === TransactionSource.Cake;
       if (filterMode === "manual") return t.source === TransactionSource.Manual;
       return true;
     });
-  }, [transactions, searchTerm, filterMode, periodFilter]);
+  }, [transactions, searchTerm, filterMode, periodFilter, typeFilter]);
 
   const visibleData = filteredData.slice(0, page * 15);
-  const totalExpense = filteredData.reduce((sum, item) => sum + item.amount, 0);
+  const totalExpense = filteredData
+    .filter((t) => t.type === TransactionType.Expense)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const totalIncome = filteredData
+    .filter((t) => t.type === TransactionType.Income)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const netBalance = totalIncome - totalExpense;
 
   const groupedDays = useMemo(() => {
     return groupTransactionsByDate(visibleData);
   }, [visibleData]);
 
   const summaryTitle = useMemo(() => {
-    if (periodFilter === "today") return "Tổng Chi Tiêu Hôm Nay";
-    if (periodFilter === "week") return "Tổng Chi Tiêu Tuần Này";
-    if (periodFilter === "month") return "Tổng Chi Tiêu Tháng Này";
-    return "Tổng Chi Tiêu Đã Lọc";
+    if (periodFilter === "today") return "Chi Tiêu Hôm Nay";
+    if (periodFilter === "week") return "Chi Tiêu Tuần Này";
+    if (periodFilter === "month") return "Chi Tiêu Tháng Này";
+    return "Chi Tiêu Đã Lọc";
   }, [periodFilter]);
 
   const periodFilters: Array<{ value: PeriodFilter; label: string }> = [
@@ -151,30 +169,6 @@ export default function TransactionHistory() {
     { value: "receipt", label: "Có ảnh bill", icon: Camera },
     { value: "manual", label: "Nhập tay" },
   ];
-
-  const handleExportCsv = () => {
-    if (filteredData.length === 0) return;
-    const headers = "ID,Mô tả,Danh mục,Số tiền,Nguồn,Ngày\n";
-    const csvContent = filteredData
-      .map((t) => {
-        let sourceStr = "Nhập tay";
-        if (t.source === TransactionSource.SnapReceipt) sourceStr = "Snap Bill";
-        if (t.source === TransactionSource.MoMo) sourceStr = "MoMo";
-        if (t.source === TransactionSource.Cake) sourceStr = "Cake Bank";
-        const dateStr = new Date(t.transactionDate).toLocaleDateString("vi-VN");
-        return `"${t.id}","${t.description || t.merchant || ""}","${t.categoryName || ""}","-${t.amount}","${sourceStr}","${dateStr}"`;
-      })
-      .join("\n");
-
-    const blob = new Blob([headers + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `lich_su_chi_tieu_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 px-4 pt-4 pb-12">
@@ -198,16 +192,6 @@ export default function TransactionHistory() {
             <RefreshCw size={13} className={cn("text-zinc-400", isSyncing && "animate-spin")} />
             <span>{isSyncing ? "Đang quét..." : "Đồng bộ MoMo/Cake"}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={filteredData.length === 0}
-            className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-40"
-          >
-            <Download size={13} />
-            <span>Xuất CSV</span>
-          </button>
         </div>
       </div>
 
@@ -215,11 +199,36 @@ export default function TransactionHistory() {
       <section className="rounded-2xl border border-white/[0.08] bg-zinc-950 p-4 shadow-sm flex items-center justify-between">
         <div>
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
-            {summaryTitle}
+            {typeFilter === "income"
+              ? "Tổng Thu Nhập"
+              : typeFilter === "expense"
+              ? summaryTitle
+              : "Dòng Tiền Thuần (Thu - Chi)"}
           </span>
-          <span className="text-2xl font-black text-white tracking-tight mt-0.5 block">
-            {formatCurrency(totalExpense)}
+          <span
+            className={cn(
+              "text-2xl font-black tracking-tight mt-0.5 block",
+              typeFilter === "income"
+                ? "text-emerald-400"
+                : typeFilter === "expense"
+                ? "text-white"
+                : netBalance >= 0
+                ? "text-emerald-400"
+                : "text-rose-400"
+            )}
+          >
+            {typeFilter === "income"
+              ? `+${formatCurrency(totalIncome)}`
+              : typeFilter === "expense"
+              ? `-${formatCurrency(totalExpense)}`
+              : `${netBalance >= 0 ? "+" : ""}${formatCurrency(netBalance)}`}
           </span>
+          {typeFilter === "all" && (
+            <div className="flex items-center gap-3 mt-1.5 text-[11px]">
+              <span className="text-emerald-400 font-semibold">Thu: +{formatCurrency(totalIncome)}</span>
+              <span className="text-zinc-400 font-semibold">Chi: -{formatCurrency(totalExpense)}</span>
+            </div>
+          )}
         </div>
         <span className="p-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white">
           <ArrowUpRight size={20} />
@@ -228,6 +237,48 @@ export default function TransactionHistory() {
 
       {/* Search & Filter Chips */}
       <section className="space-y-3">
+        {/* Type Filter: Tất cả | Chi tiêu (-) | Thu nhập (+) */}
+        <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter("all");
+              setPage(1);
+            }}
+            className={cn(
+              "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+              typeFilter === "all" ? "bg-white text-black font-bold shadow-sm" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Tất cả
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter("expense");
+              setPage(1);
+            }}
+            className={cn(
+              "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+              typeFilter === "expense" ? "bg-white text-black font-bold shadow-sm" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Chi tiêu (-)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTypeFilter("income");
+              setPage(1);
+            }}
+            className={cn(
+              "flex-1 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95 text-center",
+              typeFilter === "income" ? "bg-emerald-400 text-black font-bold shadow-sm" : "text-zinc-400 hover:text-white"
+            )}
+          >
+            Thu nhập (+)
+          </button>
+        </div>
         {/* Period Filter (Hôm nay / Tuần này / Tháng này / Tất cả) */}
         <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08]">
           {periodFilters.map((p) => {
@@ -393,8 +444,13 @@ export default function TransactionHistory() {
 
                         {/* Right: Amount & Delete Button */}
                         <div className="flex items-center gap-2.5 shrink-0">
-                          <span className="text-xs sm:text-sm font-black tracking-tight text-white">
-                            -{formatCurrency(t.amount)}
+                          <span
+                            className={cn(
+                              "text-xs sm:text-sm font-black tracking-tight",
+                              t.type === TransactionType.Income ? "text-emerald-400" : "text-white"
+                            )}
+                          >
+                            {t.type === TransactionType.Income ? "+" : "-"}{formatCurrency(t.amount)}
                           </span>
                           <button
                             type="button"

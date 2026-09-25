@@ -1,14 +1,50 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const DEFAULT_PROD_API = "https://expense-tracker-573b.onrender.com";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? DEFAULT_PROD_API : "");
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 45000, // 45 giây timeout phòng Render Free Tier thức dậy chậm
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+// Cảnh báo thân thiện khi Render Cold Start mất trên 3.5 giây
+type ColdStartTimer = ReturnType<typeof setTimeout>;
+
+api.interceptors.request.use((config) => {
+  const customConfig = config as typeof config & { __coldStartTimer?: ColdStartTimer };
+  customConfig.__coldStartTimer = setTimeout(() => {
+    toast.info("Đang khởi động máy chủ đám mây (Render Free Tier)...", {
+      id: "render-cold-start",
+      description: "Có thể mất 15-30 giây trong lần đầu truy cập. Vui lòng giữ màn hình.",
+      duration: 15000,
+    });
+  }, 3500);
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => {
+    const customConfig = response.config as typeof response.config & { __coldStartTimer?: ColdStartTimer };
+    if (customConfig?.__coldStartTimer) {
+      clearTimeout(customConfig.__coldStartTimer);
+    }
+    toast.dismiss("render-cold-start");
+    return response;
+  },
+  (error) => {
+    const customConfig = error?.config as typeof error.config & { __coldStartTimer?: ColdStartTimer };
+    if (customConfig?.__coldStartTimer) {
+      clearTimeout(customConfig.__coldStartTimer);
+    }
+    toast.dismiss("render-cold-start");
+    return Promise.reject(error);
+  }
+);
 
 export const TransactionType = {
   Expense: 1,

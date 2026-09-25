@@ -439,7 +439,7 @@ export default function Analytics() {
           <p className="text-xs text-zinc-400">Dữ liệu tính toán thời gian thực</p>
         </div>
 
-        <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08] overflow-x-auto no-scrollbar gap-0.5 max-w-full">
+        <div className="flex bg-zinc-950 p-1 rounded-2xl border border-white/[0.08] overflow-x-auto no-scrollbar gap-0.5 max-w-full pr-3">
           {timeRangeOptions.map((opt) => {
             const isSelected = timeRange === opt.value;
             return (
@@ -448,7 +448,7 @@ export default function Analytics() {
                 type="button"
                 onClick={() => setTimeRange(opt.value)}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95",
+                  "px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95",
                   isSelected
                     ? "bg-white text-black font-bold shadow-sm"
                     : "text-zinc-400 hover:text-white"

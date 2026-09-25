@@ -147,7 +147,7 @@ export default function QuickPresetsBar({ categories, onTransactionCreated }: Pr
       </div>
 
       {/* Row of 1-Tap Preset Pills */}
-      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar select-none">
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar select-none pr-4">
         {presets.map((preset) => {
           const isPending = isSubmittingId === preset.id;
           return (

@@ -168,7 +168,9 @@ export default function MonthlyBudgetCard({
                 {formatCurrency(currentExpenseMonth)}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                <span className="truncate">Hạn mức: {formatCurrency(budget)}</span>
+                <span className="truncate">
+                  Hạn mức: {budget >= 1000000 && budget % 1000000 === 0 ? `${budget / 1000000}tr` : formatCurrency(budget)}
+                </span>
                 <button
                   type="button"
                   onClick={handleStartEdit}

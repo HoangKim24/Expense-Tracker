@@ -613,16 +613,16 @@ export default function Dashboard() {
             </span>
           </div>
 
-          {/* Chip cộng nhanh */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-            {[10000, 20000, 50000, 100000, 200000, 500000, 1000000].map((quick) => (
+          {/* Chip cộng nhanh (5 cột chuẩn xác, 100% nằm gọn trong card không bao giờ tràn khung) */}
+          <div className="grid grid-cols-5 gap-1.5">
+            {[10000, 20000, 50000, 100000, 200000].map((quick) => (
               <button
                 key={quick}
                 type="button"
                 onClick={() => handleQuickAddAmount(quick)}
-                className="shrink-0 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95"
+                className="w-full py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95 text-center"
               >
-                +{quick >= 1000000 ? `${quick / 1000000}tr` : quick >= 1000 ? `${quick / 1000}k` : quick}
+                +{quick >= 1000 ? `${quick / 1000}k` : quick}
               </button>
             ))}
           </div>
@@ -632,7 +632,7 @@ export default function Dashboard() {
             <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
               <Tag size={11} /> Danh mục
             </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar pr-4">
               {categories
                 .filter((cat) => cat.type === transactionType || (!cat.type && transactionType === TransactionType.Expense))
                 .map((cat) => {
@@ -665,7 +665,7 @@ export default function Dashboard() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder={transactionType === TransactionType.Income ? "Ghi chú (Lương, thưởng, chuyển khoản...)" : "Ghi chú (Cơm trưa, cà phê, grab, xăng...)"}
+              placeholder={transactionType === TransactionType.Income ? "Ghi chú (lương, thưởng...)" : "Ghi chú (cơm, cafe, grab...)"}
               value={note}
               onChange={(e) => handleNoteChange(e.target.value)}
               className="flex-1 min-w-0 rounded-xl bg-black border border-white/10 px-3.5 py-2.5 text-sm sm:text-xs font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-white/30"

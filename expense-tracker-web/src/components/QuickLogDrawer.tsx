@@ -293,16 +293,16 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
               </span>
             </div>
 
-            {/* Dãy chip cộng nhanh */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {[10000, 20000, 50000, 100000, 200000, 500000, 1000000].map((val) => (
+            {/* Dãy chip cộng nhanh (5 cột chuẩn, nằm gọn trong khung drawer) */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {[10000, 20000, 50000, 100000, 200000].map((val) => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => handleQuickAdd(val)}
-                  className="shrink-0 px-3 py-1.5 rounded-xl bg-black border border-white/[0.08] hover:border-white/20 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95"
+                  className="w-full py-1.5 rounded-xl bg-black border border-white/[0.08] hover:border-white/20 text-[11px] font-semibold text-zinc-400 hover:text-white transition active:scale-95 text-center"
                 >
-                  +{val >= 1000000 ? `${val / 1000000}tr` : val >= 1000 ? `${val / 1000}k` : val}
+                  +{val >= 1000 ? `${val / 1000}k` : val}
                 </button>
               ))}
             </div>
@@ -323,7 +323,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
                 <Tag size={11} /> Danh mục
               </span>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar pr-4">
                 {categories
                   .filter((cat) => cat.type === transactionType || (!cat.type && transactionType === TransactionType.Expense))
                   .map((cat) => {

@@ -121,8 +121,59 @@ export type DayGroup = {
   dateKey: string; // YYYY-MM-DD
   dateLabel: string;
   totalExpense: number;
+  totalIncome: number;
   transactions: TransactionDto[];
 };
+
+/**
+ * Chuyển đổi Date hoặc chuỗi ngày thành format chuẩn YYYY-MM-DD theo múi giờ local
+ */
+export function toDateKey(date: Date | string): string {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Tính ngày liền kề (+1 ngày hoặc -1 ngày) từ dateKey chuẩn YYYY-MM-DD
+ */
+export function getOffsetDateKey(dateKey: string, offsetDays: number): string {
+  const [year, month, day] = dateKey.split("-").map((num) => parseInt(num, 10));
+  const d = new Date(year, month - 1, day);
+  d.setDate(d.getDate() + offsetDays);
+  return toDateKey(d);
+}
+
+export type DayStripItem = {
+  dateKey: string; // YYYY-MM-DD
+  dayOfWeek: string; // "CN", "T2", "T3"...
+  dayOfMonth: number; // 24
+  month: number; // 9
+  isToday: boolean;
+  isYesterday: boolean;
+};
+
+/**
+ * Lấy danh sách n ngày gần nhất lùi dần từ hôm nay để hiển thị thanh trượt chọn ngày
+ */
+export function getRecentDaysStrip(count = 14): DayStripItem[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateKey = toDateKey(d);
+    const weekdayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+    return {
+      dateKey,
+      dayOfWeek: weekdayNames[d.getDay()],
+      dayOfMonth: d.getDate(),
+      month: d.getMonth() + 1,
+      isToday: i === 0,
+      isYesterday: i === 1,
+    };
+  });
+}
 
 /**
  * Gom nhóm danh sách giao dịch theo từng ngày và tính tổng chi tiêu mỗi ngày
@@ -131,14 +182,14 @@ export function groupTransactionsByDate(transactions: TransactionDto[]): DayGrou
   const groupsMap = new Map<string, DayGroup>();
 
   transactions.forEach((t) => {
-    const d = new Date(t.transactionDate);
-    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const dateKey = toDateKey(t.transactionDate);
 
     if (!groupsMap.has(dateKey)) {
       groupsMap.set(dateKey, {
         dateKey,
         dateLabel: formatDateHeading(t.transactionDate),
         totalExpense: 0,
+        totalIncome: 0,
         transactions: [],
       });
     }
@@ -147,6 +198,8 @@ export function groupTransactionsByDate(transactions: TransactionDto[]): DayGrou
     group.transactions.push(t);
     if (t.type === TransactionType.Expense) {
       group.totalExpense += t.amount;
+    } else if (t.type === TransactionType.Income) {
+      group.totalIncome += t.amount;
     }
   });
 

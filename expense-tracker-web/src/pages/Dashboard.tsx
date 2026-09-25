@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   ArrowUpRight, 
   PlusCircle, 
@@ -33,13 +33,14 @@ import LocketCameraModal from "../components/LocketCameraModal";
 import QuickPresetsBar from "../components/QuickPresetsBar";
 import MonthlyBudgetCard from "../components/MonthlyBudgetCard";
 import { parseTransactionText, detectCategoryFromText, matchCategoryId } from "../lib/smartParser";
-import { isSameDay, isToday, isThisWeek, isThisMonth, formatWeekRange } from "../lib/dateUtils";
+import { isSameDay, isToday, isThisWeek, isThisMonth, formatWeekRange, toDateKey } from "../lib/dateUtils";
 import { deleteLocalReceipt } from "../lib/receiptStorage";
 
-type DayTotal = { label: string; amount: number; isToday: boolean };
+type DayTotal = { label: string; amount: number; isToday: boolean; dateKey: string; fullDateStr: string };
 type DashboardPeriod = "today" | "week" | "month";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriod>("month");
   const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
@@ -701,23 +702,27 @@ export default function Dashboard() {
           {weeklyTotals.map((day) => {
             const height = day.amount ? Math.max((day.amount / maxWeeklyTotal) * 100, 8) : 4;
             return (
-              <div key={day.label} className="flex h-full flex-col items-center justify-end gap-1.5">
-                <span className="text-[10px] font-semibold text-zinc-500 truncate max-w-full">
+              <div 
+                key={day.label} 
+                onClick={() => navigate(`/history?date=${day.dateKey}`)}
+                className="flex h-full flex-col items-center justify-end gap-1.5 cursor-pointer group active:scale-95 transition select-none"
+                title={`Chạm để xem chi tiết ngày ${day.label} (${day.fullDateStr}): ${formatCurrency(day.amount)}`}
+              >
+                <span className="text-[10px] font-semibold text-zinc-500 group-hover:text-white truncate max-w-full transition">
                   {day.amount > 0 ? `${Math.round(day.amount / 1000)}k` : ""}
                 </span>
                 <div
-                  title={`${day.label}: ${formatCurrency(day.amount)}`}
                   style={{ height: `${height}%` }}
-                  className={`w-full rounded-xl transition-all duration-300 ${
+                  className={`w-full rounded-xl transition-all duration-300 group-hover:scale-105 ${
                     day.isToday
                       ? day.amount > 0
                         ? "bg-white shadow-[0_0_12px_rgba(255,255,255,0.4)]"
                         : "bg-zinc-700/60 border border-white/20"
-                      : "bg-zinc-800/80 hover:bg-zinc-700"
+                      : "bg-zinc-800/80 group-hover:bg-zinc-600"
                   }`}
                 />
                 <span
-                  className={`text-[11px] font-semibold ${
+                  className={`text-[11px] font-semibold transition group-hover:text-white ${
                     day.isToday ? "text-white font-bold" : "text-zinc-500"
                   }`}
                 >
@@ -727,6 +732,9 @@ export default function Dashboard() {
             );
           })}
         </div>
+        <p className="text-[10px] text-zinc-500 text-center pt-1 flex items-center justify-center gap-1">
+          <span>💡</span> <span>Chạm vào cột ngày để xem chi tiết các khoản chi ngày đó</span>
+        </p>
       </section>
 
       {/* 4. Top Danh Mục Chi Tiêu */}
@@ -827,6 +835,7 @@ function getWeeklyTotals(transactions: TransactionDto[]): DayTotal[] {
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
+    const dateKey = toDateKey(date);
     const amount = transactions
       .filter(
         (transaction) =>
@@ -835,6 +844,8 @@ function getWeeklyTotals(transactions: TransactionDto[]): DayTotal[] {
       )
       .reduce((sum, transaction) => sum + transaction.amount, 0);
     return {
+      dateKey,
+      fullDateStr: date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
       label: date.toLocaleDateString("vi-VN", { weekday: "short" }),
       amount,
       isToday: isSameDay(date, today),

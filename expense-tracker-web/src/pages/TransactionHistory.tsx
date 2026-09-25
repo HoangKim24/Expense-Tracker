@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Search, Camera, Trash2, Tag, Calendar, Receipt, RefreshCw, Smartphone, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { 
+  Search, 
+  Camera, 
+  Trash2, 
+  Tag, 
+  Calendar, 
+  Receipt, 
+  RefreshCw, 
+  Smartphone, 
+  X,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn, formatCurrency } from "../lib/utils";
@@ -15,13 +29,24 @@ import {
 import { deleteLocalReceipt } from "../lib/receiptStorage";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import ReceiptImage from "../components/ReceiptImage";
-import { isToday, isThisWeek, isThisMonth, groupTransactionsByDate } from "../lib/dateUtils";
+import { 
+  isThisWeek, 
+  isThisMonth, 
+  groupTransactionsByDate,
+  toDateKey,
+  getOffsetDateKey,
+  getRecentDaysStrip,
+  formatDateHeading 
+} from "../lib/dateUtils";
 
 type FilterMode = "all" | "receipt" | "momo" | "cake" | "manual";
-type PeriodFilter = "all" | "today" | "week" | "month";
+type PeriodFilter = "all" | "today" | "yesterday" | "week" | "month";
 type TypeFilter = "all" | "expense" | "income";
 
 export default function TransactionHistory() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedDate = searchParams.get("date");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -30,6 +55,30 @@ export default function TransactionHistory() {
   const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
+
+  const handleSelectDate = (dateKey: string | null) => {
+    setPage(1);
+    if (dateKey) {
+      setSearchParams({ date: dateKey });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const handlePrevDay = () => {
+    const baseKey = selectedDate || toDateKey(new Date());
+    const prevKey = getOffsetDateKey(baseKey, -1);
+    handleSelectDate(prevKey);
+  };
+
+  const handleNextDay = () => {
+    const baseKey = selectedDate || toDateKey(new Date());
+    const nextKey = getOffsetDateKey(baseKey, 1);
+    const todayKey = toDateKey(new Date());
+    if (nextKey <= todayKey) {
+      handleSelectDate(nextKey);
+    }
+  };
 
   const fetchTransactions = useCallback(() => {
     getTransactions()
@@ -108,16 +157,45 @@ export default function TransactionHistory() {
     }
   };
 
+  // Map ngày -> tổng chi tiêu & thu nhập để hiển thị badge trên dải ngày
+  const dailyStatsMap = useMemo(() => {
+    const map = new Map<string, { expense: number; income: number; count: number }>();
+    for (const t of transactions) {
+      const key = toDateKey(t.transactionDate);
+      const curr = map.get(key) || { expense: 0, income: 0, count: 0 };
+      if (t.type === TransactionType.Expense) {
+        curr.expense += t.amount;
+      } else if (t.type === TransactionType.Income) {
+        curr.income += t.amount;
+      }
+      curr.count += 1;
+      map.set(key, curr);
+    }
+    return map;
+  }, [transactions]);
+
+  // Dải 14 ngày gần nhất
+  const recentDays = useMemo(() => getRecentDaysStrip(14), []);
+
   const filteredData = useMemo(() => {
+    const todayKey = toDateKey(new Date());
+    const yesterdayKey = getOffsetDateKey(todayKey, -1);
+
     return transactions.filter((t) => {
       // 1. Lọc theo loại (Tất cả / Chi tiêu / Thu nhập)
       if (typeFilter === "expense" && t.type !== TransactionType.Expense) return false;
       if (typeFilter === "income" && t.type !== TransactionType.Income) return false;
 
-      // 2. Lọc theo mốc thời gian (Hôm nay / Tuần này / Tháng này / Tất cả)
-      if (periodFilter === "today" && !isToday(t.transactionDate)) return false;
-      if (periodFilter === "week" && !isThisWeek(t.transactionDate)) return false;
-      if (periodFilter === "month" && !isThisMonth(t.transactionDate)) return false;
+      // 2. Lọc theo ngày cụ thể (nếu đang chọn 1 ngày nhất định)
+      if (selectedDate) {
+        if (toDateKey(t.transactionDate) !== selectedDate) return false;
+      } else {
+        // Lọc theo mốc thời gian (Hôm nay / Hôm qua / Tuần này / Tháng này / Tất cả)
+        if (periodFilter === "today" && toDateKey(t.transactionDate) !== todayKey) return false;
+        if (periodFilter === "yesterday" && toDateKey(t.transactionDate) !== yesterdayKey) return false;
+        if (periodFilter === "week" && !isThisWeek(t.transactionDate)) return false;
+        if (periodFilter === "month" && !isThisMonth(t.transactionDate)) return false;
+      }
 
       // 3. Lọc theo tìm kiếm
       const desc = (t.description || t.merchant || "").toLowerCase();
@@ -133,9 +211,10 @@ export default function TransactionHistory() {
       if (filterMode === "manual") return t.source === TransactionSource.Manual;
       return true;
     });
-  }, [transactions, searchTerm, filterMode, periodFilter, typeFilter]);
+  }, [transactions, searchTerm, filterMode, periodFilter, typeFilter, selectedDate]);
 
-  const visibleData = filteredData.slice(0, page * 15);
+  // Nếu đang xem theo ngày cụ thể, hiển thị toàn bộ không cắt trang
+  const visibleData = selectedDate ? filteredData : filteredData.slice(0, page * 15);
   const totalExpense = filteredData
     .filter((t) => t.type === TransactionType.Expense)
     .reduce((sum, item) => sum + item.amount, 0);
@@ -149,15 +228,25 @@ export default function TransactionHistory() {
   }, [visibleData]);
 
   const summaryTitle = useMemo(() => {
+    if (selectedDate) {
+      const todayKey = toDateKey(new Date());
+      const yesterdayKey = getOffsetDateKey(todayKey, -1);
+      if (selectedDate === todayKey) return "Chi Tiêu Hôm Nay";
+      if (selectedDate === yesterdayKey) return "Chi Tiêu Hôm Qua";
+      const [year, month, day] = selectedDate.split("-");
+      return `Chi Tiêu Ngày ${day}/${month}/${year}`;
+    }
     if (periodFilter === "today") return "Chi Tiêu Hôm Nay";
+    if (periodFilter === "yesterday") return "Chi Tiêu Hôm Qua";
     if (periodFilter === "week") return "Chi Tiêu Tuần Này";
     if (periodFilter === "month") return "Chi Tiêu Tháng Này";
     return "Chi Tiêu Đã Lọc";
-  }, [periodFilter]);
+  }, [selectedDate, periodFilter]);
 
   const periodFilters: Array<{ value: PeriodFilter; label: string }> = [
     { value: "all", label: "Tất cả" },
     { value: "today", label: "Hôm nay" },
+    { value: "yesterday", label: "Hôm qua" },
     { value: "week", label: "Tuần này" },
     { value: "month", label: "Tháng này" },
   ];
@@ -312,14 +401,26 @@ export default function TransactionHistory() {
         {/* Row 3: Horizontal Scrollable Chips Row (Period + Source) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           {periodFilters.map((p) => {
-            const isSelected = periodFilter === p.value;
+            const isSelected = selectedDate 
+              ? (p.value === "today" && selectedDate === toDateKey(new Date())) ||
+                (p.value === "yesterday" && selectedDate === getOffsetDateKey(toDateKey(new Date()), -1))
+              : periodFilter === p.value;
             return (
               <button
                 type="button"
                 key={p.value}
                 onClick={() => {
-                  setPeriodFilter(p.value);
                   setPage(1);
+                  if (p.value === "today") {
+                    handleSelectDate(toDateKey(new Date()));
+                    setPeriodFilter("today");
+                  } else if (p.value === "yesterday") {
+                    handleSelectDate(getOffsetDateKey(toDateKey(new Date()), -1));
+                    setPeriodFilter("yesterday");
+                  } else {
+                    handleSelectDate(null);
+                    setPeriodFilter(p.value);
+                  }
                 }}
                 className={cn(
                   "shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition active:scale-95",
@@ -359,6 +460,142 @@ export default function TransactionHistory() {
             );
           })}
         </div>
+
+        {/* ──────────────────────────────────────────────────────────── */}
+        {/* ROW 4: DẢI LƯỚT CHỌN NGÀY NHANH (14 NGÀY GẦN NHẤT + LỊCH)  */}
+        {/* ──────────────────────────────────────────────────────────── */}
+        <div className="rounded-2xl bg-zinc-950 border border-white/[0.08] p-2.5 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+              <CalendarDays size={12} className="text-zinc-400" /> Lướt chọn ngày cụ thể
+            </span>
+
+            {/* Nút mở Lịch Native HTML5 để chọn ngày bất kỳ trong năm */}
+            <label className="relative cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[10px] font-semibold text-zinc-300 hover:text-white transition active:scale-95">
+              <Calendar size={11} className="text-amber-400" />
+              <span>{selectedDate ? selectedDate.split("-").reverse().join("/") : "Chọn ngày khác"}</span>
+              <input
+                type="date"
+                max={toDateKey(new Date())}
+                value={selectedDate || ""}
+                onChange={(e) => {
+                  if (e.target.value) handleSelectDate(e.target.value);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
+          </div>
+
+          {/* Dải cuộn 14 ngày */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {recentDays.map((day) => {
+              const isSelected = selectedDate === day.dateKey;
+              const stats = dailyStatsMap.get(day.dateKey);
+              const hasExpense = stats && stats.expense > 0;
+              const hasIncome = stats && stats.income > 0;
+
+              return (
+                <button
+                  key={day.dateKey}
+                  type="button"
+                  onClick={() => handleSelectDate(isSelected ? null : day.dateKey)}
+                  className={cn(
+                    "shrink-0 flex flex-col items-center justify-between w-13 py-2 px-1 rounded-2xl border transition active:scale-95 text-center min-h-[58px]",
+                    isSelected
+                      ? "bg-white text-black font-bold border-white shadow-lg scale-105"
+                      : "bg-black/60 border-white/[0.08] hover:border-white/20 text-zinc-400 hover:text-zinc-200"
+                  )}
+                >
+                  <span className={cn(
+                    "text-[10px] uppercase font-bold",
+                    isSelected ? "text-zinc-900" : day.isToday ? "text-amber-400" : "text-zinc-500"
+                  )}>
+                    {day.isToday ? "Nay" : day.isYesterday ? "Qua" : day.dayOfWeek}
+                  </span>
+                  
+                  <span className={cn(
+                    "text-xs font-black my-0.5",
+                    isSelected ? "text-black" : "text-white"
+                  )}>
+                    {day.dayOfMonth}
+                  </span>
+
+                  {/* Nhãn tiền hoặc chấm nhỏ báo hiệu giao dịch */}
+                  <div className="h-3 flex items-center justify-center">
+                    {hasExpense ? (
+                      <span className={cn(
+                        "text-[9px] font-semibold leading-none truncate max-w-full",
+                        isSelected ? "text-zinc-800" : "text-zinc-400"
+                      )}>
+                        {stats.expense >= 1000000 
+                          ? `${Math.round(stats.expense / 1000000)}tr` 
+                          : stats.expense >= 1000 
+                          ? `${Math.round(stats.expense / 1000)}k` 
+                          : `${stats.expense}`}
+                      </span>
+                    ) : hasIncome ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    ) : (
+                      <span className="w-1 h-1 rounded-full bg-zinc-800" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ──────────────────────────────────────────────────────────── */}
+        {/* ROW 5: DATE STEPPER BANNER (CHỈ HIỂN THỊ KHI ĐANG LỌC THEO NGÀY) */}
+        {/* ──────────────────────────────────────────────────────────── */}
+        {selectedDate && (
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-zinc-900/90 border border-white/15 backdrop-blur-md shadow-md">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 active:scale-95 text-xs font-semibold text-zinc-200 hover:text-white transition"
+            >
+              <ChevronLeft size={14} />
+              <span className="hidden sm:inline">Ngày trước</span>
+            </button>
+
+            <label className="relative cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 transition active:scale-95">
+              <Calendar size={13} className="text-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-white tracking-wide">
+                {formatDateHeading(new Date(selectedDate))}
+              </span>
+              <input
+                type="date"
+                max={toDateKey(new Date())}
+                value={selectedDate}
+                onChange={(e) => {
+                  if (e.target.value) handleSelectDate(e.target.value);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleNextDay}
+                disabled={selectedDate >= toDateKey(new Date())}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 active:scale-95 text-xs font-semibold text-zinc-200 hover:text-white transition disabled:opacity-20 disabled:pointer-events-none"
+              >
+                <span className="hidden sm:inline">Ngày sau</span>
+                <ChevronRight size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectDate(null)}
+                className="p-1.5 rounded-xl bg-white/[0.08] hover:bg-white/15 text-zinc-400 hover:text-white transition active:scale-95"
+                title="Bỏ lọc theo ngày, xem tất cả"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Transactions List Grouped by Day */}
@@ -486,12 +723,40 @@ export default function TransactionHistory() {
             ))}
           </div>
         ) : (
-          <div className="px-5 py-14 text-center">
-            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.06] text-zinc-400 border border-white/10">
-              <Search size={18} />
+          <div className="px-5 py-14 text-center space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.06] text-zinc-400 border border-white/10">
+              <Calendar size={22} className="text-amber-400" />
             </div>
-            <p className="font-bold text-xs text-white">Không tìm thấy giao dịch nào</p>
-            <p className="mt-1 text-[11px] text-zinc-500">Thử đổi mốc thời gian hoặc bộ lọc khác.</p>
+            <div>
+              <p className="font-bold text-xs text-white">
+                {selectedDate 
+                  ? `Không có giao dịch nào trong ngày ${selectedDate.split("-").reverse().join("/")}`
+                  : "Không tìm thấy giao dịch nào"}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500 max-w-xs mx-auto">
+                {selectedDate
+                  ? "Bạn chưa ghi chép khoản chi hoặc thu nhập nào vào ngày này."
+                  : "Thử đổi mốc thời gian hoặc từ khóa tìm kiếm khác."}
+              </p>
+            </div>
+            {selectedDate && (
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSelectDate(toDateKey(new Date()))}
+                  className="px-3.5 py-1.5 rounded-xl bg-white text-black font-bold text-xs active:scale-95 transition shadow-sm"
+                >
+                  Về Hôm nay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectDate(null)}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/10 border border-white/10 text-zinc-300 font-semibold text-xs active:scale-95 transition"
+                >
+                  Xem tất cả
+                </button>
+              </div>
+            )}
           </div>
         )}
 

@@ -70,7 +70,9 @@ export async function deleteLocalReceipt(key?: string | null): Promise<void> {
           const fileName = parsed.pathname.split("/").pop();
           if (fileName) store.delete(fileName);
         }
-      } catch {}
+      } catch {
+        // Bỏ qua nếu URL không hợp lệ
+      }
 
       // Nếu key có dạng /uploads/xxx.jpg
       const fileName = key.split("/").pop();
@@ -126,7 +128,9 @@ export async function getLocalReceipt(key?: string | null): Promise<string | nul
             pathReq.onerror = () => resolve(null);
             return;
           }
-        } catch {}
+        } catch {
+          // Bỏ qua nếu URL không hợp lệ
+        }
 
         // Nếu key là /uploads/xxx.jpg, thử tìm theo filename xxx.jpg
         const fileName = key.split("/").pop();

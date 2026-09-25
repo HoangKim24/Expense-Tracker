@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { 
   Trash2, 
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { formatCurrency } from "../lib/utils";
 import { 
   getTransactions, 
   deleteTransaction, 
@@ -36,9 +37,14 @@ export default function ReceiptSnaps() {
 
   // Mở camera tự động lên đầu tiên khi bấm vào tab Hóa đơn
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(true);
+  const isInitialMount = useRef(true);
 
-  // Mở camera mỗi khi điều hướng đến tab Hóa đơn
+  // Mở camera khi chuyển tab Hóa đơn
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setIsCameraModalOpen(true);
   }, [location.pathname, location.key]);
 
@@ -51,8 +57,7 @@ export default function ReceiptSnaps() {
 
   // Tải danh sách hóa đơn và danh mục thật từ Backend
   const loadSnaps = useCallback(() => {
-    setIsLoading(true);
-    Promise.all([getTransactions(), getCategories()])
+    return Promise.all([getTransactions(), getCategories()])
       .then(([transData, catData]) => {
         const withReceipt = transData.filter(
           (t) => (!!t.receiptImagePath || t.source === TransactionSource.SnapReceipt) && t.type === TransactionType.Expense
@@ -72,7 +77,10 @@ export default function ReceiptSnaps() {
 
   useEffect(() => {
     loadSnaps();
-    const handleUpdate = () => loadSnaps();
+    const handleUpdate = () => {
+      setIsLoading(true);
+      loadSnaps();
+    };
     window.addEventListener("transaction-updated", handleUpdate);
     return () => window.removeEventListener("transaction-updated", handleUpdate);
   }, [loadSnaps]);
@@ -93,8 +101,6 @@ export default function ReceiptSnaps() {
       toast.error("Không thể xóa hóa đơn. Vui lòng thử lại!");
     }
   };
-
-  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
   // Lọc theo tìm kiếm và danh mục
   const filteredSnaps = useMemo(() => {

@@ -145,16 +145,16 @@ export default function WeeklyBudgetCard({
       {weeklyBudget ? (
         <div className="space-y-3">
           {/* Numbers row */}
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[11px] text-zinc-500 font-medium mb-0.5">Đã chi</p>
-              <p className="text-2xl font-extrabold text-white tracking-tight">
+          <div className="grid grid-cols-2 gap-3 min-w-0">
+            <div className="min-w-0">
+              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5 truncate">Đã chi</p>
+              <p className="text-2xl font-black text-white tracking-tight truncate">
                 {formatCurrency(currentSpent)}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-[11px] text-zinc-500 font-medium mb-0.5">Ngân sách</p>
-              <p className="text-sm font-bold text-zinc-300">{formatCurrency(weeklyBudget)}</p>
+            <div className="min-w-0 text-right">
+              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-0.5 truncate">Hạn mức tuần</p>
+              <p className="text-2xl font-black text-zinc-300 tracking-tight truncate">{formatCurrency(weeklyBudget)}</p>
             </div>
           </div>
 

@@ -22,7 +22,7 @@ import {
   getEndOfWeek,
   formatWeekRange
 } from "../lib/dateUtils";
-import { cn } from "../lib/utils";
+import { cn, formatCurrency } from "../lib/utils";
 import WeeklyBudgetCard from "../components/WeeklyBudgetCard";
 
 type TimeRange = "today" | "this-week" | "this-month" | "last-month" | "all";
@@ -89,8 +89,6 @@ export default function Analytics() {
       .catch(() => setTransactions([]))
       .finally(() => setIsLoading(false));
   }, []);
-
-  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
   // 1. Lọc theo khoảng thời gian thực tế
   const filteredTransactions = useMemo(() => {
@@ -409,7 +407,7 @@ export default function Analytics() {
     }
 
     return result;
-  }, [weeklyBudget, insights, formatCurrency]);
+  }, [weeklyBudget, insights]);
 
   const insightBgColor = (type: "danger" | "warning" | "success" | "info") => {
     switch (type) {

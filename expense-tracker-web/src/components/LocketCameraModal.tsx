@@ -60,46 +60,15 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     setStream(null);
   }, []);
 
-  // Khởi động stream camera - Chuẩn hóa cho iOS Safari, không re-create
-  const startCamera = useCallback(async (mode: "environment" | "user") => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setHasCameraPermission(null);
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setHasCameraPermission(false);
-      return;
-    }
-
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: mode === "user" ? "user" : { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = newStream;
-      setStream(newStream);
-      setHasCameraPermission(true);
-    } catch {
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-        streamRef.current = fallbackStream;
-        setStream(fallbackStream);
-        setHasCameraPermission(true);
-      } catch {
-        setHasCameraPermission(false);
-      }
-    }
-  }, []);
+  const handleClose = useCallback(() => {
+    stopStream();
+    setCapturedImage(null);
+    setCapturedFile(null);
+    setAmount("");
+    setDescription("");
+    setIsSubmitting(false);
+    onClose();
+  }, [stopStream, onClose]);
 
   // Gắn stream vào thẻ video một lần duy nhất và lắng nghe sự kiện phát hình
   useEffect(() => {
@@ -127,34 +96,80 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     };
   }, [stream, capturedImage]);
 
-  // Quản lý đóng/mở modal
+  // Load danh mục
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && categories.length === 0) {
       getCategories()
         .then((cats) => {
           setCategories(cats);
-          if (cats.length > 0 && !selectedCategoryId) {
+          if (cats.length > 0) {
             const defaultCat = cats.find((c) => c.name.includes("Ăn") || c.name.includes("Cà phê")) || cats[0];
-            setSelectedCategoryId(defaultCat.id);
+            setSelectedCategoryId((prev) => prev || defaultCat.id);
           }
         })
         .catch(() => setCategories([]));
-
-      if (!capturedImage) {
-        startCamera(facingMode);
-      }
-    } else {
-      stopStream();
-      setCapturedImage(null);
-      setCapturedFile(null);
-      setAmount("");
-      setDescription("");
-      setIsSubmitting(false);
     }
+  }, [isOpen, categories.length]);
+
+  // Quản lý đóng/mở camera stream
+  useEffect(() => {
+    if (!isOpen || capturedImage) return;
+
+    let isCancelled = false;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setTimeout(() => {
+        if (!isCancelled) setHasCameraPermission(false);
+      }, 0);
+      return;
+    }
+
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          facingMode: facingMode === "user" ? "user" : { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      })
+      .then((newStream) => {
+        if (isCancelled) {
+          newStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = newStream;
+        setStream(newStream);
+        setHasCameraPermission(true);
+      })
+      .catch(() => {
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: false })
+          .then((fallback) => {
+            if (isCancelled) {
+              fallback.getTracks().forEach((t) => t.stop());
+              return;
+            }
+            streamRef.current = fallback;
+            setStream(fallback);
+            setHasCameraPermission(true);
+          })
+          .catch(() => {
+            if (!isCancelled) {
+              setHasCameraPermission(false);
+            }
+          });
+      });
+
     return () => {
-      stopStream();
+      isCancelled = true;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      setStream(null);
     };
-  }, [isOpen, facingMode, capturedImage, startCamera, stopStream]);
+  }, [isOpen, facingMode, capturedImage]);
 
   // Tự động focus vào ô nhập tiền sau khi chụp
   useEffect(() => {
@@ -230,7 +245,6 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
     setCapturedFile(null);
     setAmount("");
     setDescription("");
-    startCamera(facingMode);
   };
 
   // Nút cộng tiền nhanh
@@ -370,7 +384,7 @@ export default function LocketCameraModal({ isOpen, onClose, onSuccess }: Props)
             {/* Close / Retake Button */}
             <button
               type="button"
-              onClick={capturedImage ? handleRetake : onClose}
+              onClick={capturedImage ? handleRetake : handleClose}
               className="px-3.5 h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/90 backdrop-blur-xl border border-white/10 flex items-center gap-1.5 transition shadow-lg text-xs font-semibold"
               title={capturedImage ? "Chụp lại" : "Xem kho hóa đơn"}
             >

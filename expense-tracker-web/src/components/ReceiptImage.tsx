@@ -10,20 +10,19 @@ interface Props {
 }
 
 export default function ReceiptImage({ src, path, alt, className = "w-full h-full object-cover" }: Props) {
-  const [currentSrc, setCurrentSrc] = useState<string | null>(src);
+  const [fallbackSrc, setFallbackSrc] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
+
+  // Ảnh hiển thị ưu tiên: fallbackSrc nếu có lỗi từ server, nếu không thì dùng src ban đầu
+  const activeSrc = fallbackSrc || src;
 
   useEffect(() => {
     let isMounted = true;
-    setCurrentSrc(src);
-    setHasError(false);
-
-    // Kiểm tra bản lưu dự phòng trong IndexedDB nếu không có src sẵn
     const lookupKey = path || src;
     if (lookupKey && !src) {
       getLocalReceipt(lookupKey).then((cached) => {
         if (isMounted && cached) {
-          setCurrentSrc(cached);
+          setFallbackSrc(cached);
         }
       });
     }
@@ -38,8 +37,8 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
     const lookupKey = path || src;
     if (lookupKey) {
       const cached = await getLocalReceipt(lookupKey);
-      if (cached && cached !== currentSrc) {
-        setCurrentSrc(cached);
+      if (cached && cached !== fallbackSrc) {
+        setFallbackSrc(cached);
         setHasError(false);
         return;
       }
@@ -51,7 +50,7 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
     setHasError(false);
   };
 
-  if (!currentSrc || hasError) {
+  if (!activeSrc || hasError) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900/80 p-3 text-center">
         <ImageIcon size={32} className="text-zinc-600 mb-1.5" />
@@ -63,7 +62,7 @@ export default function ReceiptImage({ src, path, alt, className = "w-full h-ful
 
   return (
     <img
-      src={currentSrc}
+      src={activeSrc}
       alt={alt}
       loading="lazy"
       onError={handleError}

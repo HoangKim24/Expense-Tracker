@@ -26,9 +26,7 @@ export function parseTransactionText(text: string): ParsedTransaction {
   const cleanText = text.trim();
   let amount: number | null = null;
   let merchant = "";
-  let description = "";
   let source: TransactionSourceValue = TransactionSource.Manual;
-  let detectedCategoryName: string | null = null;
 
   // 1. Nhận diện Nguồn giao dịch
   const lowerText = cleanText.toLowerCase();
@@ -84,15 +82,10 @@ export function parseTransactionText(text: string): ParsedTransaction {
   }
 
   // Nếu không tách được merchant, lấy toàn bộ hoặc dòng đầu tiên làm description
-  if (merchant) {
-    description = merchant;
-  } else {
-    // Rút gọn 40 ký tự đầu tiên
-    description = cleanText.slice(0, 45);
-  }
+  const description = merchant ? merchant : cleanText.slice(0, 45);
 
   // 4. Đoán danh mục theo từ khóa
-  detectedCategoryName = detectCategoryFromText(lowerText);
+  const detectedCategoryName = detectCategoryFromText(lowerText);
 
   return {
     amount,

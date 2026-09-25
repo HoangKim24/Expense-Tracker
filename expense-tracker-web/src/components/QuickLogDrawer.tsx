@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -15,7 +15,9 @@ import {
   createTransaction, 
   TransactionType, 
   TransactionSource, 
-  type CategoryDto 
+  type CategoryDto,
+  type TransactionTypeValue,
+  type TransactionSourceValue,
 } from "../lib/api";
 import { 
   parseTransactionText, 
@@ -41,25 +43,34 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
 
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  // Load categories
+  const resetForm = useCallback(() => {
+    setAmount("");
+    setDescription("");
+    setIsManualCategoryOverride(false);
+    setSelectedSource(TransactionSource.Manual);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  // Load categories một lần duy nhất khi khởi tạo
+  useEffect(() => {
+    getCategories()
+      .then((cats) => {
+        setCategories(cats);
+        if (cats.length > 0) {
+          const defaultCat = cats.find((c) => c.type === TransactionType.Expense) || cats[0];
+          setSelectedCategoryId(defaultCat.id);
+        }
+      })
+      .catch(() => setCategories([]));
+  }, []);
+
+  // Tự động focus vào ô nhập tiền khi mở drawer
   useEffect(() => {
     if (isOpen) {
-      getCategories()
-        .then((cats) => {
-          setCategories(cats);
-          if (cats.length > 0 && !selectedCategoryId) {
-            const defaultCat = cats.find((c) => c.type === transactionType) || cats[0];
-            setSelectedCategoryId(defaultCat.id);
-          }
-        })
-        .catch(() => setCategories([]));
-
-      // Reset state & auto-focus input
-      setAmount("");
-      setDescription("");
-      setIsManualCategoryOverride(false);
-      setSelectedSource(TransactionSource.Manual);
-
       const timer = setTimeout(() => {
         amountInputRef.current?.focus();
       }, 250);
@@ -150,8 +161,8 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
         amount: numeric,
         transactionDate: new Date().toISOString(),
         description: description.trim() || (transactionType === TransactionType.Income ? "Thu nhập" : "Chi tiêu"),
-        type: transactionType as any,
-        source: selectedSource as any,
+        type: transactionType as TransactionTypeValue,
+        source: selectedSource as TransactionSourceValue,
         categoryId: selectedCategoryId || null,
       });
 
@@ -168,6 +179,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
       });
 
       window.dispatchEvent(new CustomEvent("transaction-updated"));
+      resetForm();
       onSuccess?.();
       onClose();
     } catch {
@@ -181,7 +193,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-md">
-          <div onClick={onClose} className="absolute inset-0" />
+          <div onClick={handleClose} className="absolute inset-0" />
 
         <motion.div
           initial={{ y: "100%" }}
@@ -212,7 +224,7 @@ export default function QuickLogDrawer({ isOpen, onClose, onSuccess }: Props) {
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1.5 rounded-full bg-white/[0.06] text-zinc-400 hover:text-white"
               >
                 <X size={18} />

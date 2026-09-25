@@ -13,7 +13,7 @@ import {
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
-import { cn } from "../lib/utils";
+import { cn, formatCurrency } from "../lib/utils";
 import {
   getDashboardMetrics,
   getTransactions,
@@ -26,6 +26,7 @@ import {
   type DashboardMetricsDto,
   type TransactionDto,
   type CategoryDto,
+  type TransactionTypeValue,
 } from "../lib/api";
 import PolaroidDetailModal from "../components/PolaroidDetailModal";
 import LocketCameraModal from "../components/LocketCameraModal";
@@ -164,9 +165,6 @@ export default function Dashboard() {
     return () => window.removeEventListener("transaction-updated", handleUpdate);
   }, [loadData]);
 
-  // Format currency
-  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
-
   // Quick Amount Add
   const handleQuickAddAmount = (extra: number) => {
     const current = Number(amount.replace(/\D/g, "")) || 0;
@@ -190,7 +188,9 @@ export default function Dashboard() {
       if (navigator.clipboard && navigator.clipboard.readText) {
         clipboardText = await navigator.clipboard.readText();
       }
-    } catch {}
+    } catch {
+      // Trình duyệt chặn quyền clipboard
+    }
 
     if (!clipboardText) {
       const manual = window.prompt("Dán nội dung thông báo giao dịch MoMo hoặc Ngân hàng:");
@@ -241,7 +241,7 @@ export default function Dashboard() {
         amount: numericAmount,
         transactionDate: new Date().toISOString(),
         description: note.trim() || defaultDesc,
-        type: transactionType as any,
+        type: transactionType as TransactionTypeValue,
         source: TransactionSource.Manual,
         categoryId: selectedCategoryId || null,
       });
@@ -860,7 +860,20 @@ function CategoryDonutChart({
   const total = breakdown.reduce((s, c) => s + c.totalAmount, 0);
   if (total === 0) return null;
 
-  let cumulativePct = 0;
+  // Tính trước các phân đoạn biểu đồ tròn hoàn toàn thuần túy, không mutate biến
+  const topCategories = breakdown.slice(0, 7);
+  const segments = topCategories.map((cat, i) => {
+    const pct = (cat.totalAmount / total) * 100;
+    const dashLen = Math.max((pct / 100) * CIRC - GAP, 0);
+    const priorPct = topCategories.slice(0, i).reduce((sum, c) => sum + (c.totalAmount / total) * 100, 0);
+    const rotation = (priorPct / 100) * 360 - 90;
+    return {
+      name: cat.categoryName,
+      color: COLORS[i % COLORS.length],
+      dashLen,
+      rotation,
+    };
+  });
 
   return (
     <svg
@@ -879,28 +892,21 @@ function CategoryDonutChart({
         strokeWidth={STROKE_WIDTH}
       />
 
-      {breakdown.slice(0, 7).map((cat, i) => {
-        const pct = (cat.totalAmount / total) * 100;
-        const dashLen = Math.max((pct / 100) * CIRC - GAP, 0);
-        const rotation = (cumulativePct / 100) * 360 - 90; // Bắt đầu từ đỉnh (-90 độ)
-        const el = (
-          <circle
-            key={cat.categoryName}
-            cx={CX}
-            cy={CY}
-            r={R}
-            fill="none"
-            stroke={COLORS[i % COLORS.length]}
-            strokeWidth={STROKE_WIDTH}
-            strokeDasharray={`${dashLen} ${CIRC}`}
-            transform={`rotate(${rotation} ${CX} ${CY})`}
-            strokeLinecap="round"
-            className="transition-all duration-700"
-          />
-        );
-        cumulativePct += pct;
-        return el;
-      })}
+      {segments.map((seg) => (
+        <circle
+          key={seg.name}
+          cx={CX}
+          cy={CY}
+          r={R}
+          fill="none"
+          stroke={seg.color}
+          strokeWidth={STROKE_WIDTH}
+          strokeDasharray={`${seg.dashLen} ${CIRC}`}
+          transform={`rotate(${seg.rotation} ${CX} ${CY})`}
+          strokeLinecap="round"
+          className="transition-all duration-700"
+        />
+      ))}
 
       {/* Trung tâm: hiển thị tỷ lệ hoặc số lượng danh mục */}
       <text

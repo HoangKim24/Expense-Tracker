@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Target, Pencil, Check, X, AlertTriangle, ShieldCheck, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -28,15 +28,14 @@ export default function MonthlyBudgetCard({
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (isEditing) {
-      setEditValue(new Intl.NumberFormat("vi-VN").format(budget));
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 50);
-    }
-  }, [isEditing, budget]);
+  const handleStartEdit = () => {
+    setEditValue(new Intl.NumberFormat("vi-VN").format(budget));
+    setIsEditing(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+  };
 
   const handleSave = () => {
     const numeric = parseInt(editValue.replace(/\D/g, ""), 10);
@@ -172,7 +171,7 @@ export default function MonthlyBudgetCard({
                 <span className="truncate">Hạn mức: {formatCurrency(budget)}</span>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleStartEdit}
                   className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition shrink-0 active:scale-95"
                   title="Thay đổi ngân sách tháng"
                 >

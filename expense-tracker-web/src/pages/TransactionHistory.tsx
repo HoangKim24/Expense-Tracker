@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Search, Camera, Trash2, Tag, Calendar, Receipt, RefreshCw, Smartphone, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { cn } from "../lib/utils";
+import { cn, formatCurrency } from "../lib/utils";
 import { 
   getTransactions, 
   deleteTransaction, 
@@ -32,7 +32,6 @@ export default function TransactionHistory() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
 
   const fetchTransactions = useCallback(() => {
-    setIsLoading(true);
     getTransactions()
       .then((data) => {
         setTransactions(data);
@@ -46,7 +45,10 @@ export default function TransactionHistory() {
   useEffect(() => {
     fetchTransactions();
 
-    const handleUpdate = () => fetchTransactions();
+    const handleUpdate = () => {
+      setIsLoading(true);
+      fetchTransactions();
+    };
     window.addEventListener("transaction-updated", handleUpdate);
     return () => window.removeEventListener("transaction-updated", handleUpdate);
   }, [fetchTransactions]);
@@ -71,8 +73,6 @@ export default function TransactionHistory() {
       });
     }
   };
-
-  const formatCurrency = (val: number) => `${new Intl.NumberFormat("vi-VN").format(val)}đ`;
 
   const [isSyncing, setIsSyncing] = useState(false);
 

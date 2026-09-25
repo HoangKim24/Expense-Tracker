@@ -4,11 +4,14 @@ import { Plus, RefreshCw, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import QuickLogDrawer from "./QuickLogDrawer";
-import { lockApp } from "./PinLockGuard";
+import { lockApp } from "../lib/pinAuth";
 
 export default function MainLayout() {
   const location = useLocation();
-  const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
+  const [isQuickLogOpen, setIsQuickLogOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("quick") === "true";
+  });
 
   // Lắng nghe sự kiện toàn cục để mở quick log
   useEffect(() => {
@@ -16,14 +19,6 @@ export default function MainLayout() {
     window.addEventListener("open-quick-log", handleOpen);
     return () => window.removeEventListener("open-quick-log", handleOpen);
   }, []);
-
-  // Hỗ trợ PWA shortcut ?quick=true
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("quick") === "true") {
-      setIsQuickLogOpen(true);
-    }
-  }, [location.search]);
 
   const leftNavItems = [
     { name: "Tổng quan", path: "/", icon: "dashboard" },

@@ -2,28 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { Lock, Delete, ShieldCheck, KeyRound } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-
-const PIN_STORAGE_KEY = "expense_pin_unlocked_until";
-const FOUR_WEEKS_MS = 28 * 24 * 60 * 60 * 1000; // 28 ngày (4 tuần)
-const CORRECT_PIN = "2403";
-
-export function isAppUnlocked(): boolean {
-  if (typeof window === "undefined") return true;
-  const raw = localStorage.getItem(PIN_STORAGE_KEY);
-  if (!raw) return false;
-  const expiresAt = parseInt(raw, 10);
-  if (isNaN(expiresAt) || Date.now() > expiresAt) {
-    localStorage.removeItem(PIN_STORAGE_KEY);
-    return false;
-  }
-  return true;
-}
-
-export function lockApp(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(PIN_STORAGE_KEY);
-  window.dispatchEvent(new CustomEvent("app-locked"));
-}
+import { isAppUnlocked, saveAppUnlocked, CORRECT_PIN } from "../lib/pinAuth";
 
 interface PinLockGuardProps {
   children: ReactNode;
@@ -48,13 +27,43 @@ export default function PinLockGuard({ children }: PinLockGuardProps) {
   }, []);
 
   const handleKeyPress = useCallback((digit: string) => {
-    if (enteredPin.length >= 4) return;
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-    setErrorMessage("");
-    setEnteredPin((prev) => prev + digit);
-  }, [enteredPin.length]);
+    setEnteredPin((prev) => {
+      if (prev.length >= 4) return prev;
+      const nextPin = prev + digit;
+
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      setErrorMessage("");
+
+      if (nextPin.length === 4) {
+        if (nextPin === CORRECT_PIN) {
+          if (typeof navigator !== "undefined" && navigator.vibrate) {
+            navigator.vibrate([20, 40, 20]);
+          }
+          saveAppUnlocked();
+          toast.success("Mở khóa thành công!", {
+            description: "Đã lưu đăng nhập trong 4 tuần.",
+          });
+          setUnlocked(true);
+          return "";
+        } else {
+          if (typeof navigator !== "undefined" && navigator.vibrate) {
+            navigator.vibrate([50, 50, 50]);
+          }
+          setIsShaking(true);
+          setErrorMessage("Mã PIN không đúng, vui lòng thử lại!");
+          setTimeout(() => {
+            setIsShaking(false);
+            setEnteredPin("");
+          }, 500);
+          return nextPin;
+        }
+      }
+
+      return nextPin;
+    });
+  }, []);
 
   const handleDelete = useCallback(() => {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -63,33 +72,6 @@ export default function PinLockGuard({ children }: PinLockGuardProps) {
     setEnteredPin((prev) => prev.slice(0, -1));
     setErrorMessage("");
   }, []);
-
-  // Xử lý khi đủ 4 ký tự PIN
-  useEffect(() => {
-    if (enteredPin.length === 4) {
-      if (enteredPin === CORRECT_PIN) {
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate([20, 40, 20]);
-        }
-        localStorage.setItem(PIN_STORAGE_KEY, (Date.now() + FOUR_WEEKS_MS).toString());
-        toast.success("Mở khóa thành công!", {
-          description: "Đã lưu đăng nhập trong 4 tuần.",
-        });
-        setUnlocked(true);
-        setEnteredPin("");
-      } else {
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate([50, 50, 50]);
-        }
-        setIsShaking(true);
-        setErrorMessage("Mã PIN không đúng, vui lòng thử lại!");
-        setTimeout(() => {
-          setIsShaking(false);
-          setEnteredPin("");
-        }, 500);
-      }
-    }
-  }, [enteredPin]);
 
   // Hỗ trợ nhập phím vật lý trên máy tính hoặc bàn phím gắn ngoài
   useEffect(() => {
